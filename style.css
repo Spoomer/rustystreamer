@@ -1,0 +1,10 @@
+body {
+    margin: 40px auto;
+    width: 650px;
+    background-color: #444;
+    color: beige;
+}
+
+.video-list-item {
+    color: aqua;
+}

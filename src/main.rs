@@ -1,7 +1,8 @@
+use actix_files::NamedFile;
 use actix_web::{
     get,
     http::header::{self, ContentType},
-    web, App, HttpRequest, HttpResponse, HttpServer, Responder,
+    web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result
 };
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
@@ -20,6 +21,11 @@ async fn index() -> impl Responder {
     HttpResponse::Ok()
         .content_type(ContentType::html())
         .body(file)
+}
+#[get("/style.css")]
+async fn css() -> Result<NamedFile> {
+    let path: PathBuf = "./style.css".parse().unwrap();
+    Ok(NamedFile::open(path)?)
 }
 #[get("/video/{name}")]
 async fn video_page(name: web::Path<String>) -> impl Responder {
@@ -86,6 +92,7 @@ async fn main() -> std::io::Result<()> {
             .service(index)
             .service(video_page)
             .service(load_video)
+            .service(css)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
