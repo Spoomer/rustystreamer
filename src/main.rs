@@ -7,7 +7,7 @@ use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
 };
-use videoflix::RangeHeader;
+use rustystreamer::RangeHeader;
 
 const VIDEO_PATH: &str = "video";
 #[get("/")]
@@ -58,9 +58,9 @@ async fn load_video(name: web::Path<String>, request: HttpRequest) -> impl Respo
             .seek(SeekFrom::Start(range_header.start))
             .unwrap();
         let mut content = Vec::<u8>::new();
-        let mut buffer = [0; videoflix::CHUNK_SIZE];
+        let mut buffer = [0; rustystreamer::CHUNK_SIZE];
         let size_read = buf_reader.read(&mut buffer[..]).unwrap();
-        if size_read > videoflix::CHUNK_SIZE {
+        if size_read > rustystreamer::CHUNK_SIZE {
             return HttpResponse::InternalServerError().finish();
         }
         content.extend_from_slice(&buffer[..size_read]);

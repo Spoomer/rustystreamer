@@ -7,16 +7,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'videoflix'",
+            "name": "Debug unit tests in library 'rustystreamer'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=videoflix"
+                    "--package=rustystreamer"
                 ],
                 "filter": {
-                    "name": "videoflix",
+                    "name": "rustystreamer",
                     "kind": "lib"
                 }
             },
@@ -26,15 +26,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'videoflix'",
+            "name": "Debug executable 'rustystreamer'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=videoflix",
-                    "--package=videoflix"
+                    "--bin=rustystreamer",
+                    "--package=rustystreamer"
                 ],
                 "filter": {
-                    "name": "videoflix",
+                    "name": "rustystreamer",
                     "kind": "bin"
                 }
             },
@@ -44,16 +44,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'videoflix'",
+            "name": "Debug unit tests in executable 'rustystreamer'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=videoflix",
-                    "--package=videoflix"
+                    "--bin=rustystreamer",
+                    "--package=rustystreamer"
                 ],
                 "filter": {
-                    "name": "videoflix",
+                    "name": "rustystreamer",
                     "kind": "bin"
                 }
             },
