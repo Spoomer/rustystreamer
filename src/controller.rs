@@ -58,9 +58,10 @@ async fn load_video(
         if !header_map.contains_key(header::RANGE) {
             return HttpResponse::BadRequest().finish();
         }
+        let video = &video_index.get_index().lock().unwrap()[name.as_str()];
         let path: PathBuf = [
             &(data.videopath),
-            &video_index.get_index().lock().unwrap()[name.as_str()].filename,
+            &video.filename,
         ]
         .iter()
         .collect();
@@ -85,7 +86,7 @@ async fn load_video(
         content.extend_from_slice(&buffer[..size_read]);
 
         let response = HttpResponse::PartialContent()
-            .content_type(ContentType("video/mp4".parse::<mime::Mime>().unwrap()))
+            .content_type(ContentType(format!("video/{}", &video.filetype).parse::<mime::Mime>().unwrap()))
             .append_header(("Content-Length", content_length))
             .append_header((
                 "Content-Range",

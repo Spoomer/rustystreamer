@@ -25,6 +25,7 @@ impl VideoIndex {
 pub struct VideoIndexEntry {
     pub filename: String,
     pub title: String,
+    pub filetype: String
 }
 
 impl VideoIndexEntry {
