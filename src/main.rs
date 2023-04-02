@@ -3,18 +3,17 @@ use actix_web::{
     http::header::{self, ContentType},
     web, App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
-use rustystreamer::RangeHeader;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
-    path::PathBuf,
+    path::PathBuf, fs,
 };
 
-const VIDEO_PATH: &str = "video";
-const VIEW_PATH: &str = "views";
+use rustystreamer::{consts, config};
+use rustystreamer::range_header::RangeHeader;
 
 #[get("/")]
 async fn index() -> impl Responder {
-    let path: PathBuf = [VIEW_PATH, "index.html"].iter().collect();
+    let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path).unwrap();
     file = file
         .replace("{title}", "Testvideo")
@@ -27,7 +26,7 @@ async fn index() -> impl Responder {
 #[get("/video/{name}")]
 async fn video_page(name: web::Path<String>) -> impl Responder {
     if name.to_string() == "Testvideo" {
-        let path: PathBuf = [VIEW_PATH, "video.html"].iter().collect();
+        let path: PathBuf = [consts::VIEW_PATH, "video.html"].iter().collect();
         let mut file = std::fs::read_to_string(path).unwrap();
         file = file
             .replace("{title}", "Testvideo")
@@ -40,17 +39,17 @@ async fn video_page(name: web::Path<String>) -> impl Responder {
 }
 
 #[get("/video-resource/{name}")]
-async fn load_video(name: web::Path<String>, request: HttpRequest) -> impl Responder {
+async fn load_video(name: web::Path<String>, request: HttpRequest, data: web::Data<config::Config>) -> impl Responder {
     if name.to_string() == "test.mp4" {
         let header_map = request.headers();
         if !header_map.contains_key(header::RANGE) {
             return HttpResponse::BadRequest().finish();
         }
-        let path: PathBuf = [VIDEO_PATH, "test.mp4"].iter().collect();
+        let path: PathBuf = [&(data.videopath), "test.mp4"].iter().collect();
         let size = std::fs::metadata(&path).unwrap().len();
         let range = header_map.get(header::RANGE).unwrap();
         let range_header = RangeHeader::parse(range, size).unwrap();
-        if !(range_header.unit == "bytes") {
+        if range_header.unit != "bytes" {
             return HttpResponse::BadRequest().finish();
         }
         let content_length = range_header.end - range_header.start + 1;
@@ -60,9 +59,9 @@ async fn load_video(name: web::Path<String>, request: HttpRequest) -> impl Respo
             .seek(SeekFrom::Start(range_header.start))
             .unwrap();
         let mut content = Vec::<u8>::new();
-        let mut buffer = [0; rustystreamer::CHUNK_SIZE];
+        let mut buffer = [0; consts::CHUNK_SIZE];
         let size_read = buf_reader.read(&mut buffer[..]).unwrap();
-        if size_read > rustystreamer::CHUNK_SIZE {
+        if size_read > consts::CHUNK_SIZE {
             return HttpResponse::InternalServerError().finish();
         }
         content.extend_from_slice(&buffer[..size_read]);
@@ -83,14 +82,22 @@ async fn load_video(name: web::Path<String>, request: HttpRequest) -> impl Respo
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    let config = get_config();
+    let port = config.port;
+    HttpServer::new(move || {
         App::new()
+        .app_data(web::Data::new(config.clone()))
             .service(index)
             .service(video_page)
             .service(load_video)
             .service(actix_files::Files::new("/assets", "./assets"))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", port))?
     .run()
     .await
+}
+
+fn get_config() -> config::Config {
+    let config_json = fs::read_to_string("./config.json").unwrap();
+    serde_json::from_str(&config_json).unwrap()
 }
