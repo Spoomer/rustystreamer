@@ -10,9 +10,12 @@
     <h1>{title}</h1>
     <div class="video-container">
         <video id="Videoplayer" controls>
-            <source src="/video-resource/{videoId}"/>
+            <source src="/video-resource/{videoId}" />
         </video>
     </div>
 </body>
 
 </html>
+<script>
+    setInterval(function () { fetch("/update-video-timestamp/{videoId}/" + Math.floor(document.getElementById("Videoplayer").currentTime)) }, 1000);
+</script>

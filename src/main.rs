@@ -19,6 +19,8 @@ async fn main() -> std::io::Result<()> {
             .service(controller::video_page)
             .service(controller::load_video)
             .service(actix_files::Files::new("/assets", "./assets"))
+            .service(controller::update_timestamp)
+            .service(controller::timestamp)
     })
     .bind(("127.0.0.1", port))?
     .run()
