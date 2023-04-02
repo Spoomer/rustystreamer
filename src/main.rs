@@ -1,19 +1,20 @@
-use actix_files::NamedFile;
 use actix_web::{
     get,
     http::header::{self, ContentType},
-    web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result
+    web, App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
+use rustystreamer::RangeHeader;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
 };
-use rustystreamer::RangeHeader;
 
 const VIDEO_PATH: &str = "video";
+const VIEW_PATH: &str = "views";
+
 #[get("/")]
 async fn index() -> impl Responder {
-    let path: PathBuf = "./index.html".parse().unwrap();
+    let path: PathBuf = [VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path).unwrap();
     file = file
         .replace("{title}", "Testvideo")
@@ -22,15 +23,11 @@ async fn index() -> impl Responder {
         .content_type(ContentType::html())
         .body(file)
 }
-#[get("/style.css")]
-async fn css() -> Result<NamedFile> {
-    let path: PathBuf = "./style.css".parse().unwrap();
-    Ok(NamedFile::open(path)?)
-}
+
 #[get("/video/{name}")]
 async fn video_page(name: web::Path<String>) -> impl Responder {
     if name.to_string() == "Testvideo" {
-        let path: PathBuf = "./video.html".parse().unwrap();
+        let path: PathBuf = [VIEW_PATH, "video.html"].iter().collect();
         let mut file = std::fs::read_to_string(path).unwrap();
         file = file
             .replace("{title}", "Testvideo")
@@ -41,6 +38,7 @@ async fn video_page(name: web::Path<String>) -> impl Responder {
     }
     HttpResponse::NotFound().finish()
 }
+
 #[get("/video-resource/{name}")]
 async fn load_video(name: web::Path<String>, request: HttpRequest) -> impl Responder {
     if name.to_string() == "test.mp4" {
@@ -48,9 +46,7 @@ async fn load_video(name: web::Path<String>, request: HttpRequest) -> impl Respo
         if !header_map.contains_key(header::RANGE) {
             return HttpResponse::BadRequest().finish();
         }
-        let mut path = PathBuf::new();
-        path.push(VIDEO_PATH);
-        path.push("test.mp4");
+        let path: PathBuf = [VIDEO_PATH, "test.mp4"].iter().collect();
         let size = std::fs::metadata(&path).unwrap().len();
         let range = header_map.get(header::RANGE).unwrap();
         let range_header = RangeHeader::parse(range, size).unwrap();
@@ -92,7 +88,7 @@ async fn main() -> std::io::Result<()> {
             .service(index)
             .service(video_page)
             .service(load_video)
-            .service(css)
+            .service(actix_files::Files::new("/assets", "./assets"))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
