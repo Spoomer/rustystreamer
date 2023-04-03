@@ -8,8 +8,8 @@ use rustystreamer::controller;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let video_index = web::Data::new(VideoIndex::new());
-    let config = get_config();
+    let video_index = web::Data::new(VideoIndex::new()?);
+    let config = get_config()?;
     let port = config.port;
     HttpServer::new(move || {
         App::new()
@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
-fn get_config() -> config::Config {
-    let config_json = fs::read_to_string("./config.json").unwrap();
-    serde_json::from_str(&config_json).unwrap()
+fn get_config() -> std::io::Result<config::Config> {
+    let config_json = fs::read_to_string("./config.json")?;
+    Ok(serde_json::from_str(&config_json)?)
 }

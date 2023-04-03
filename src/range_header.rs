@@ -2,7 +2,6 @@ use std::cmp;
 
 use actix_web::http::header::HeaderValue;
 
-
 pub struct RangeHeader {
     pub unit: String,
     pub start: u64,
@@ -11,7 +10,7 @@ pub struct RangeHeader {
 
 impl RangeHeader {
     pub fn parse(range: &HeaderValue, size: u64) -> Result<Self, Box<dyn std::error::Error>> {
-        let range: Vec<&str> = range.to_str().unwrap().split(&['=', '-'][..]).collect();
+        let range: Vec<&str> = range.to_str()?.split(&['=', '-'][..]).collect();
         if range.len() < 2 {
             Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -20,17 +19,17 @@ impl RangeHeader {
         } else if range.len() < 3 || range[2].is_empty() {
             Ok(Self {
                 unit: range[0].to_string(),
-                start: range[1].parse().unwrap(),
+                start: range[1].parse()?,
                 end: cmp::min(
-                    range[1].parse::<u64>().unwrap() + super::consts::CHUNK_SIZE as u64 -1,
+                    range[1].parse::<u64>()? + super::consts::CHUNK_SIZE as u64 - 1,
                     size - 1,
                 ),
             })
         } else {
             Ok(Self {
                 unit: range[0].to_string(),
-                start: range[1].parse().unwrap(),
-                end: cmp::min(range[2].parse().unwrap(), size - 1),
+                start: range[1].parse()?,
+                end: cmp::min(range[2].parse()?, size - 1),
             })
         }
     }
