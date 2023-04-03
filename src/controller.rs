@@ -1,10 +1,12 @@
+use crate::webmodels::VideoTimeStamp;
+
 use super::range_header::RangeHeader;
 use super::video_index::VideoIndex;
 use super::{config, consts};
 use actix_web::{
-    get,
+    error, get,
     http::header::{self, ContentType},
-    web, HttpRequest, HttpResponse, Responder,
+    post, web, HttpRequest, HttpResponse, Responder,
 };
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
@@ -60,21 +62,26 @@ async fn timestamp(id: web::Path<String>, video_index: web::Data<VideoIndex>) ->
     {
         Some(seconds) => HttpResponse::Ok()
             .content_type(ContentType::plaintext())
-            .body(seconds.to_string()),
+            .body(
+                serde_json::to_string(&VideoTimeStamp {
+                    id: id.to_string(),
+                    timestamp: *seconds,
+                })
+                .unwrap(),
+            ),
         None => HttpResponse::Ok()
             .content_type(ContentType::plaintext())
-            .body("0"),
+            .body(format!("{{\"timestamp\":0, \"id\":{}}}", id)),
     }
 }
 
-#[get("/update-video-timestamp/{id}/{seconds}")]
+#[post("/update-video-timestamp")]
 async fn update_timestamp(
-    path: web::Path<(String, u32)>,
+    video_time_stamp: web::Json<VideoTimeStamp>,
     video_index: web::Data<VideoIndex>,
-) -> impl Responder {
-    let (id, seconds) = path.into_inner();
-    video_index.update_timestamp(id, seconds);
-    HttpResponse::Ok()
+) -> Result<impl Responder, actix_web::Error> {
+    video_index.update_timestamp(video_time_stamp.id.to_string(), video_time_stamp.timestamp);
+    Ok(HttpResponse::Ok())
 }
 
 #[get("/video-resource/{name}")]

@@ -49,7 +49,7 @@ impl VideoIndex {
             .or_insert(value);
         if SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
             - Duration::from_secs(*self.last_timestamp_save.lock().unwrap())
-            > Duration::from_secs(10)
+            > Duration::from_secs(15)
         {
             self.save_timestamps();
             *self.last_timestamp_save.lock().unwrap() = SystemTime::now()
