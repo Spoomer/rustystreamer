@@ -8,5 +8,120 @@ body {
 }
 
 .video-container {
-    display: flex;max-height: 100vh;
+    /* display: flex; */
+    max-height: 100vh;
+    max-width: 100vw;
+    /* flex-direction: column; */
+}
+
+.video-player {
+    max-width: 99vw;
+}
+
+.controls {
+    width: 100vw;
+    height: 8.0971659919028340080971659919028%;
+    /* of figure's height */
+    position: relative;
+    margin:0%;
+}
+
+.controls[data-state="hidden"] {
+    display: none;
+}
+
+.controls[data-state="visible"] {
+    display: block;
+}
+
+.controls>* {
+    float: left;
+    width: 3.90625%;
+    height: 100%;
+    /* margin-left: 0.1953125%; */
+    display: block;
+}
+
+.controls>*:first-child {
+    margin-left: 0;
+}
+
+.controls .video-progress {
+    cursor: pointer;
+    width: 75.390625%;
+}
+
+.controls .volume-progress {
+    cursor: pointer;
+    width: 5%;
+}
+
+.controls button {
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    background-size: contain;
+    background-repeat: no-repeat;
+    color: white;
+}
+
+.controls button:hover,
+.controls button:focus {
+    opacity: 0.5;
+}
+
+.controls button[data-state="mute"]>svg[id="mute"] {
+    display: block;
+}
+
+.controls button[data-state="mute"]>svg[id="unmute"] {
+    display: none;
+}
+
+.controls button[data-state="unmute"]>svg[id="mute"] {
+    display: none;
+}
+
+.controls button[data-state="unmute"]>svg[id="unmute"] {
+    display: block;
+}
+
+.controls button[data-state="play"] {
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAA…");
+}
+
+.controls button[data-state="pause"] {
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAA…");
+}
+
+.controls progress {
+    display: block;
+    width: 100%;
+    height: 81%;
+    margin-top: 0.125rem;
+    border: none;
+    color: #0095dd;
+    -moz-border-radius: 2px;
+    -webkit-border-radius: 2px;
+    border-radius: 2px;
+}
+
+.controls progress[data-state="fake"] {
+    background: #e6e6e6;
+    height: 65%;
+}
+
+.controls progress span {
+    width: 0%;
+    height: 100%;
+    display: inline-block;
+    background-color: #2a84cd;
+}
+
+.controls progress::-moz-progress-bar {
+    background-color: #0095dd;
+}
+
+.controls progress::-webkit-progress-value {
+    background-color: #0095dd;
 }
