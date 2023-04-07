@@ -54,7 +54,23 @@ playpause.onclick = () => {
         videoplayer.pause();
     }
 }
-
+let mouseOverControls = false;
+videoplayer.onmouseover = () => {
+    if (!mouseOverControls) {
+        videoControls.setAttribute("data-state", "visible")
+    }
+}
+videoplayer.onmouseout = () => {
+    if (!mouseOverControls) {
+        videoControls.setAttribute("data-state", "hidden")
+    }
+}
+videoControls.onmouseover = () => {
+    mouseOverControls = true;
+}
+videoControls.onmouseout = () => {
+    mouseOverControls = false;
+}
 videoplayer.addEventListener(
     "play",
     () => {
@@ -139,7 +155,13 @@ videoProgress.onclick = (e) => {
         videoProgress.offsetWidth;
     videoplayer.currentTime = pos * videoplayer.duration;
 }
-
+videoProgress.onmouseover = (e) => {
+    const pos =
+        (e.pageX - videoProgress.offsetLeft - videoProgress.offsetParent.offsetLeft) /
+        videoProgress.offsetWidth;
+    const currentTime = pos * videoplayer.duration;
+    console.log(currentTime);
+}
 if (!document?.fullscreenEnabled) {
     fullscreen.style.display = "none";
 }

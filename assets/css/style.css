@@ -7,30 +7,42 @@ body {
     color: aqua;
 }
 
+.figure-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
 .video-container {
-    /* display: flex; */
+    display: flex;
     max-height: 100vh;
     max-width: 100vw;
-    /* flex-direction: column; */
+    flex-direction: column;
+    width: max-content;
+    align-items: center;
 }
 
 .video-player {
+    max-height: 92vh;
     max-width: 99vw;
 }
 
 .controls {
-    width: 100vw;
-    height: 8.0971659919028340080971659919028%;
-    /* of figure's height */
+    width: 100%;
     position: relative;
-    margin:0%;
+    margin: 0%;
+    background-color: gray;
+    opacity:0.6;
+    transform: translateY(-90%);    
 }
 
 .controls[data-state="hidden"] {
+    transition: display 2s ease-in 1s, opacity 300ms;
     display: none;
 }
 
 .controls[data-state="visible"] {
+    transition: display 2s ease-in 1s, opacity 300ms;
+
     display: block;
 }
 
@@ -48,7 +60,7 @@ body {
 
 .controls .video-progress {
     cursor: pointer;
-    width: 75.390625%;
+width: 75.390625%;
 }
 
 .controls .volume-progress {
