@@ -31,8 +31,8 @@ body {
     position: relative;
     margin: 0%;
     background-color: gray;
-    opacity:0.6;
-    transform: translateY(-90%);    
+    opacity: 0.6;
+    transform: translateY(-90%);
 }
 
 .controls[data-state="hidden"] {
@@ -60,7 +60,7 @@ body {
 
 .controls .video-progress {
     cursor: pointer;
-width: 75.390625%;
+    width: 75.390625%;
 }
 
 .controls .volume-progress {
@@ -108,7 +108,7 @@ width: 75.390625%;
 
 .controls progress {
     display: block;
-    width: 100%;
+    width: 75%;
     height: 81%;
     margin-top: 0.125rem;
     border: none;
@@ -136,4 +136,31 @@ width: 75.390625%;
 
 .controls progress::-webkit-progress-value {
     background-color: #0095dd;
+}
+
+.controls .progress-bar {
+    width: 75%;
+    height: 5px;
+    margin: 20px auto;
+    position: relative;
+    background-color: #ccc;
+}
+
+.controls .progress {
+    width: 0%;
+    height: 100%;
+    background-color: #f00;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.controls .circle {
+    width: 1em;
+    height: 1em;
+    background-color: #f00;
+    border-radius: 50%;
+    position: absolute;
+    top: -1px;
+    cursor: pointer;
 }

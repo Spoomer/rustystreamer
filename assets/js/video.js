@@ -6,16 +6,17 @@ const playpause = document.getElementById("playpause");
 const mute = document.getElementById("mute");
 const volinc = document.getElementById("volinc");
 const voldec = document.getElementById("voldec");
-const videoProgress = document.getElementById("video-progress");
-const videoProgressBar = document.getElementById("video-progress-bar");
 const volumeProgress = document.getElementById("volume-progress");
 const volumeProgressBar = document.getElementById("volume-progress-bar");
 const fullscreen = document.getElementById("fs");
+const       progressBar = document.getElementById('progress-bar');
+const progress = document.getElementById('progress');
+const circle = document.getElementById('circle');
 
 //timestamp
 videoplayer.onloadedmetadata = function () {
     getTimestamp()
-    videoProgress.setAttribute("max", videoplayer.duration);
+    // videoProgress.setAttribute("max", videoplayer.duration);
 };
 
 let intervalSet = false;
@@ -54,23 +55,23 @@ playpause.onclick = () => {
         videoplayer.pause();
     }
 }
-let mouseOverControls = false;
-videoplayer.onmouseover = () => {
-    if (!mouseOverControls) {
-        videoControls.setAttribute("data-state", "visible")
-    }
-}
-videoplayer.onmouseout = () => {
-    if (!mouseOverControls) {
-        videoControls.setAttribute("data-state", "hidden")
-    }
-}
-videoControls.onmouseover = () => {
-    mouseOverControls = true;
-}
-videoControls.onmouseout = () => {
-    mouseOverControls = false;
-}
+// let mouseOverControls = false;
+// videoplayer.onmouseover = () => {
+//     if (!mouseOverControls) {
+//         videoControls.setAttribute("data-state", "visible")
+//     }
+// }
+// videoplayer.onmouseout = () => {
+//     if (!mouseOverControls) {
+//         videoControls.setAttribute("data-state", "hidden")
+//     }
+// }
+// videoControls.onmouseover = () => {
+//     mouseOverControls = true;
+// }
+// videoControls.onmouseout = () => {
+//     mouseOverControls = false;
+// }
 videoplayer.addEventListener(
     "play",
     () => {
@@ -142,26 +143,57 @@ volumeProgress.onclick = (e) => {
 }
 
 videoplayer.ontimeupdate = () => {
-    if (!videoProgress.getAttribute("max")) {
-        videoProgress.setAttribute("max", videoplayer.duration);
-    }
-    videoProgress.value = videoplayer.currentTime;
-    videoProgressBar.style.width = `${Math.floor((videoplayer.currentTime * 100) / videoplayer.duration)}%`;
+    // if (!videoProgress.getAttribute("max")) {
+    //     videoProgress.setAttribute("max", videoplayer.duration);
+    // }
+    // videoProgress.value = videoplayer.currentTime;
+    // videoProgressBar.style.width = `${Math.floor((videoplayer.currentTime * 100) / videoplayer.duration)}%`;
+
+    const progressPercent = (videoplayer.currentTime / videoplayer.duration) * 100;
+    progress.style.width = `${progressPercent}%`;
+    circle.style.left = `${progressPercent}%`;
 }
 
-videoProgress.onclick = (e) => {
-    const pos =
-        (e.pageX - videoProgress.offsetLeft - videoProgress.offsetParent.offsetLeft) /
-        videoProgress.offsetWidth;
-    videoplayer.currentTime = pos * videoplayer.duration;
+// videoProgress.onclick = (e) => {
+//     const pos =
+//         (e.pageX - videoProgress.offsetLeft - videoProgress.offsetParent.offsetLeft) /
+//         videoProgress.offsetWidth;
+//     videoplayer.currentTime = pos * videoplayer.duration;
+// }
+// videoProgress.onmouseover = (e) => {
+//     const pos =
+//         (e.pageX - videoProgress.offsetLeft - videoProgress.offsetParent.offsetLeft) /
+//         videoProgress.offsetWidth;
+//     const currentTime = pos * videoplayer.duration;
+//     console.log(currentTime);
+// }
+
+circle.addEventListener('mousedown', () => {
+    videoplayer.pause();
+    document.addEventListener('mousemove', moveCircle);
+});
+
+document.addEventListener('mouseup', () => {
+    document.removeEventListener('mousemove', moveCircle);
+    videoplayer.play();
+});
+
+function moveCircle(e) {
+    console.log(e.pageX);
+    const progressBarWidth = progressBar.offsetWidth;
+    console.log(progress.clientWidth);
+    const progressRect = progress.getBoundingClientRect();
+    const clickX = (e.pageX - progressRect.x) / progress.offsetWidth;
+    // clickX = event.clientX - circle.offsetWidth / 2;
+    const progressPercent = (clickX / progressBarWidth) * 100;
+
+    if (progressPercent >= 0 && progressPercent <= 100) {
+        progress.style.width = `${progressPercent}%`;
+        circle.style.left = `${progressPercent}%`;
+        videoplayer.currentTime = (progressPercent / 100) * videoplayer.duration;
+    }
 }
-videoProgress.onmouseover = (e) => {
-    const pos =
-        (e.pageX - videoProgress.offsetLeft - videoProgress.offsetParent.offsetLeft) /
-        videoProgress.offsetWidth;
-    const currentTime = pos * videoplayer.duration;
-    console.log(currentTime);
-}
+
 if (!document?.fullscreenEnabled) {
     fullscreen.style.display = "none";
 }

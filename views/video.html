@@ -10,21 +10,25 @@
     <h1>{title}</h1>
     <div class="figure-wrapper">
         <figure id="videoContainer" class="video-container" data-fullscreen="false">
-            <video id="videoplayer" class="video-player" controls data-videoId="{videoId}">
+            <video id="videoplayer" class="video-player" controls data-videoId="{videoId}" preload="metadata">
                 <source src="/video-resource/{videoId}" />
             </video>
             <div id="video-controls" class="controls" data-state="hidden">
                 <button id="playpause" type="button" data-state="play">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                        class="bi bi-play" viewBox="0 0 16 16">
+                        class="bi bi-play" viewBox="0 0 16 16" data-state="play" id="playIcon">
                         <path
                             d="M10.804 8 5 4.633v6.734L10.804 8zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696l6.363 3.692z" />
                     </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                        class="bi bi-pause" viewBox="0 0 16 16" data-state="pause" id="pauseIcon">
+                        <path
+                            d="M6 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5z" />
+                    </svg>
                 </button>
-                <div class="video-progress">
-                    <progress id="video-progress" value="0" min="0">
-                        <span id="video-progress-bar"></span>
-                    </progress>
+                <div class="progress-bar" id="progress-bar">
+                    <div class="progress" id="progress"></div>
+                    <div class="circle" id="circle"></div>
                 </div>
                 <button id="mute" type="button" data-state="mute">
                     <svg id="unmute" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"

@@ -8,9 +8,12 @@ use rustystreamer::controller;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let ip = "127.0.0.1";
     let video_index = web::Data::new(VideoIndex::new()?);
     let config = get_config()?;
     let port = config.port;
+    println!("Hosting at http://{}:{}", ip,port);
+    
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(config.clone()))
@@ -22,7 +25,7 @@ async fn main() -> std::io::Result<()> {
             .service(controller::update_timestamp)
             .service(controller::timestamp)
     })
-    .bind(("127.0.0.1", port))?
+    .bind((ip, port))?
     .run()
     .await
 }
