@@ -8,7 +8,11 @@ use rustystreamer::controller;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let ip = "127.0.0.1";
+    println!(
+        "Starting in working directory: {}",
+        std::env::current_dir()?.to_string_lossy()
+    );
+    let ip = "0.0.0.0";
     let video_index = web::Data::new(VideoIndex::new()?);
     let config = get_config()?;
     let port = config.port;

@@ -49,6 +49,11 @@ impl VideoIndex {
         &self.timestamps
     }
     fn load_timestamps() -> Result<HashMap<VideoId, u32>, std::io::Error> {
+        let path = std::path::Path::new(consts::VIDEO_TIMESTAMPS_PATH);
+        if !path.exists() {
+            std::fs::write(path, "{}")?;
+            return Ok(HashMap::new());
+        }
         let timestamp_files = std::fs::read_to_string(consts::VIDEO_TIMESTAMPS_PATH)?;
         Ok(serde_json::from_str(&timestamp_files)?)
     }
