@@ -102,7 +102,7 @@ async fn load_video(
             if !header_map.contains_key(header::RANGE) {
                 return Ok(HttpResponse::BadRequest().finish());
             }
-            let path: PathBuf = [&(data.videopath), &video.filename].iter().collect();
+            let path: PathBuf = [&(data.video_path), &video.filename].iter().collect();
             let size = std::fs::metadata(&path)?.len();
             let range = header_map.get(header::RANGE).unwrap();
             let range_header = RangeHeader::parse(range, size)?;
@@ -141,8 +141,11 @@ async fn load_video(
 }
 
 #[get("/thumbnail/{id}")]
-async fn get_thumbnail(id: web::Path<String>) -> Result<impl Responder, actix_web::Error> {
-    let path = get_thumbnail_path(id)?;
+async fn get_thumbnail(
+    id: web::Path<String>,
+    data: web::Data<config::Config>,
+) -> Result<impl Responder, actix_web::Error> {
+    let path = get_thumbnail_path(id, &data.thumbnail_path)?;
     let file = actix_files::NamedFile::open(path)?;
     Ok(file
         .use_etag(true)
@@ -153,8 +156,17 @@ async fn get_thumbnail(id: web::Path<String>) -> Result<impl Responder, actix_we
         }))
 }
 
-fn get_thumbnail_path<'a>(id: web::Path<String>) -> Result<PathBuf, actix_web::Error> {
-    let files: Vec<_> = fs::read_dir(format!("./thumbnails/{}/", id))?.collect();
+fn get_thumbnail_path<'a>(
+    id: web::Path<String>,
+    thumbnail_root_path: &str,
+) -> Result<PathBuf, actix_web::Error> {
+    let striped_option = thumbnail_root_path.strip_suffix('/');
+    let striped_thumbnail_root_path: &str;
+    match striped_option {
+        Some(striped) => striped_thumbnail_root_path = striped,
+        None => striped_thumbnail_root_path = &thumbnail_root_path,
+    }
+    let files: Vec<_> = fs::read_dir(format!("{}/{}/", striped_thumbnail_root_path, id))?.collect();
 
     let mut rng = rand::thread_rng();
     let random = rng.gen_range(0..files.len() - 1);

@@ -1,5 +1,6 @@
 #[derive(serde::Deserialize, Clone)]
 pub struct Config {
-    pub videopath: String,
+    pub video_path: String,
+    pub thumbnail_path: String,
     pub port: u16,
 }

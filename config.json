@@ -1,4 +1,5 @@
 {
-    "videopath": "./video",
+    "video_path": "./video",
+    "thumbnail_path": "./thumbnails",
     "port": 8080
 }
