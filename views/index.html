@@ -3,14 +3,15 @@
 
 <head>
     <link rel="stylesheet" href="/assets/css/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <title>Video-Übersicht</title>
 </head>
 
 <body>
-    <h1>Verfügbare Videos:</h1>
-    <ul>
+    <h1 class="text-3xl font-black">Video-Übersicht</h1>
+    <div class="flex flex-wrap">
         {videoListEntries}
-    </ul>
+    </div>
 </body>
 
 </html>

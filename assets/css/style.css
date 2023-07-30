@@ -4,9 +4,14 @@ body {
 }
 
 .video-list-item {
-    color: aqua;
+    padding: 1.5rem;
 }
 
 .video-container {
-    display: flex;max-height: 100vh;
+    display: flex;
+    max-height: 100vh;
+}
+
+#Videoplayer {
+    overflow: auto;
 }

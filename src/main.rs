@@ -12,8 +12,8 @@ async fn main() -> std::io::Result<()> {
     let video_index = web::Data::new(VideoIndex::new()?);
     let config = get_config()?;
     let port = config.port;
-    println!("Hosting at http://{}:{}", ip,port);
-    
+    println!("Hosting at http://{}:{}", ip, port);
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(config.clone()))
@@ -24,6 +24,7 @@ async fn main() -> std::io::Result<()> {
             .service(actix_files::Files::new("/assets", "./assets"))
             .service(controller::update_timestamp)
             .service(controller::timestamp)
+            .service(controller::get_thumbnail)
     })
     .bind((ip, port))?
     .run()

@@ -5,9 +5,11 @@ use std::{
 };
 
 use crate::consts;
+use crate::video_id::VideoId;
+
 pub struct VideoIndex {
-    video_index: Mutex<HashMap<String, VideoIndexEntry>>,
-    timestamps: Mutex<HashMap<String, u32>>,
+    video_index: Mutex<HashMap<VideoId, VideoIndexEntry>>,
+    timestamps: Mutex<HashMap<VideoId, u32>>,
     last_timestamp_save: Mutex<u64>,
 }
 
@@ -29,12 +31,12 @@ impl VideoIndex {
             last_timestamp_save: Mutex::new(now),
         })
     }
-    pub fn get_index<'a>(&'a self) -> &'a Mutex<HashMap<String, VideoIndexEntry>> {
+    pub fn get_index<'a>(&'a self) -> &'a Mutex<HashMap<VideoId, VideoIndexEntry>> {
         &self.video_index
     }
     pub fn add_to_index(
         self,
-        key: String,
+        key: VideoId,
         entry: VideoIndexEntry,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut index = self.video_index.lock().unwrap();
@@ -43,16 +45,16 @@ impl VideoIndex {
         std::fs::write(consts::VIDEO_INDEX_PATH, file_content)?;
         Ok(())
     }
-    pub fn get_timestamps<'a>(&'a self) -> &'a Mutex<HashMap<String, u32>> {
+    pub fn get_timestamps<'a>(&'a self) -> &'a Mutex<HashMap<VideoId, u32>> {
         &self.timestamps
     }
-    fn load_timestamps() -> Result<HashMap<String, u32>, std::io::Error> {
+    fn load_timestamps() -> Result<HashMap<VideoId, u32>, std::io::Error> {
         let timestamp_files = std::fs::read_to_string(consts::VIDEO_TIMESTAMPS_PATH)?;
         Ok(serde_json::from_str(&timestamp_files)?)
     }
     pub fn update_timestamp(
         &self,
-        key: String,
+        key: VideoId,
         value: u32,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.timestamps
@@ -79,14 +81,20 @@ impl VideoIndex {
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct VideoIndexEntry {
+    pub id: u32,
     pub filename: String,
     pub title: String,
     pub filetype: String,
 }
 
 impl VideoIndexEntry {
-    fn load_entries_hashmap() -> Result<HashMap<String, VideoIndexEntry>, std::io::Error> {
+    fn load_entries_hashmap() -> Result<HashMap<VideoId, VideoIndexEntry>, std::io::Error> {
         let index_file = std::fs::read_to_string(consts::VIDEO_INDEX_PATH)?;
-        Ok(serde_json::from_str(&index_file)?)
+        let entries: Vec<VideoIndexEntry> = serde_json::from_str(&index_file)?;
+        let mut map: HashMap<VideoId, VideoIndexEntry> = HashMap::new();
+        for entry in entries {
+            map.entry(VideoId(entry.id)).or_insert(entry);
+        }
+        Ok(map)
     }
 }
