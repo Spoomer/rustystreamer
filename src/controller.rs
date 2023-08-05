@@ -23,6 +23,8 @@ async fn index(video_index: web::Data<VideoIndex>) -> Result<impl Responder, act
     let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path)?;
     let mut video_list: Vec<String> = Vec::new();
+    let _ = video_index.reload_index()?;
+
     let index_map = video_index.get_index().lock().unwrap();
     let mut index: Vec<&VideoIndexEntry> = index_map.values().collect();
     index.sort_by_key(|e| &e.title);

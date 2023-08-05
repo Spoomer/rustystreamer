@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fs,
     sync::Mutex,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -11,6 +12,7 @@ pub struct VideoIndex {
     video_index: Mutex<HashMap<VideoId, VideoIndexEntry>>,
     timestamps: Mutex<HashMap<VideoId, u32>>,
     last_timestamp_save: Mutex<u64>,
+    last_video_index_hash: Mutex<blake3::Hash>,
 }
 
 impl VideoIndex {
@@ -25,14 +27,41 @@ impl VideoIndex {
                 ))
             }
         }
+        let hash = Self::get_video_index_file_hash()?;
+        Self::set_video_db_hash_file(hash)?;
         Ok(VideoIndex {
             video_index: Mutex::new(VideoIndexEntry::load_entries_hashmap()?),
             timestamps: Mutex::new(Self::load_timestamps()?),
             last_timestamp_save: Mutex::new(now),
+            last_video_index_hash: Mutex::new(hash),
         })
     }
     pub fn get_index<'a>(&'a self) -> &'a Mutex<HashMap<VideoId, VideoIndexEntry>> {
         &self.video_index
+    }
+    pub fn set_index(&self, hash: blake3::Hash) -> Result<(), std::io::Error> {
+        *self.last_video_index_hash.lock().unwrap() = hash;
+        Self::set_video_db_hash_file(hash)?;
+        Ok(())
+    }
+    pub fn reload_index(&self) -> Result<bool, std::io::Error> {
+        let hash = Self::get_video_index_file_hash()?;
+        if !self.last_video_index_hash.lock().unwrap().eq(&hash) {
+            self.set_index(hash)?;
+            *self.get_index().lock().unwrap() = VideoIndexEntry::load_entries_hashmap()?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn get_video_index_file_hash() -> Result<blake3::Hash, std::io::Error> {
+        let source_file = fs::read(consts::VIDEO_INDEX_PATH)?;
+        let index_hash = blake3::hash(&source_file);
+        Ok(index_hash)
+    }
+    fn set_video_db_hash_file(hash: blake3::Hash) -> Result<(), std::io::Error> {
+        fs::write(consts::VIDEO_DB_HASH_FILE, hash.as_bytes())?;
+        Ok(())
     }
     pub fn add_to_index(
         self,
