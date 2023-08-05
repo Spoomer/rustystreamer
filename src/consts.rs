@@ -5,3 +5,4 @@ pub const VIDEO_INDEX_PATH: &str = "videoIndex.json";
 pub const VIDEO_TIMESTAMPS_PATH: &str = "videoTimeStamps.json";
 pub const VIDEO_DB_HASH_FILE: &str = "db.hash";
 pub const EMPTY_U8_ARRAY: [u8; 0] = [];
+pub const VIDEO_COLLECTION_INDEX_PATH: &str = "videoCollectionIndex.json";

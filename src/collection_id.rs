@@ -6,9 +6,9 @@ use std::fmt;
 
 /// Wrapper for u32 as VideoId
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
-pub struct VideoId(pub u32);
+pub struct CollectionId(pub u32);
 
-impl<'de> Deserialize<'de> for VideoId {
+impl<'de> Deserialize<'de> for CollectionId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -16,7 +16,7 @@ impl<'de> Deserialize<'de> for VideoId {
         struct IdVisitor;
 
         impl<'de> Visitor<'de> for IdVisitor {
-            type Value = VideoId;
+            type Value = CollectionId;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 f.write_str("video ID as a number or string")
@@ -26,14 +26,14 @@ impl<'de> Deserialize<'de> for VideoId {
             where
                 E: de::Error,
             {
-                Ok(VideoId(id))
+                Ok(CollectionId(id))
             }
 
             fn visit_str<E>(self, id: &str) -> Result<Self::Value, E>
             where
                 E: de::Error,
             {
-                id.parse().map(VideoId).map_err(de::Error::custom)
+                id.parse().map(CollectionId).map_err(de::Error::custom)
             }
         }
 
@@ -41,7 +41,7 @@ impl<'de> Deserialize<'de> for VideoId {
     }
 }
 
-impl Serialize for VideoId {
+impl Serialize for CollectionId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

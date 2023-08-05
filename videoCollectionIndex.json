@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "name": "TestCollection",
+    "Children" : [
+      {
+        "id" : 2,
+        "name" : "TestChildCollection",
+        "videos": [1]
+      }
+    ]
+  }
+]
