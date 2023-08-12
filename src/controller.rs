@@ -26,25 +26,13 @@ async fn index_page(
 ) -> Result<impl Responder, actix_web::Error> {
     let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path)?;
-    let mut video_list: Vec<String> = Vec::new();
     let _ = video_collection_index.reload_collections()?;
 
     let index_map_mutex = video_collection_index.get_collections();
     let index_map = index_map_mutex.lock().unwrap();
-    let mut index: Vec<&VideoCollection> = index_map.values().filter(|x| x.is_root()).collect();
-    index.sort_unstable_by_key(|e| e.get_title());
-    for entry in index {
-        let string_id = entry.get_id().0.to_string();
-        video_list.push(
-            consts::VIDEO_LIST_HTML
-                .replace("{itemLink}", &format!("/collection/{}", &string_id))
-                .replace("{title}", &entry.get_title())
-                .replace(
-                    "{thumbnailLink}",
-                    &format!("thumbnail/collection/{}", &string_id),
-                ),
-        )
-    }
+    let index: Vec<&VideoCollection> = index_map.values().filter(|x| x.is_root()).collect();
+    let video_list = get_collection_html_list(index);
+
     file = file.replace("{videoListEntries}", &video_list.concat());
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
@@ -59,7 +47,7 @@ async fn collection_page(
 ) -> Result<impl Responder, actix_web::Error> {
     let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path)?;
-    let mut video_list: Vec<String> = Vec::new();
+    let video_list: Vec<String>;
     let _ = video_collection_index.reload_collections()?;
 
     let index_map_mutex = video_collection_index.get_collections();
@@ -70,35 +58,66 @@ async fn collection_page(
         None => return Err(actix_web::error::ErrorNotFound("collection not found")),
     }
     let children: &Vec<CollectionId> = collection.get_children();
-    let mut index: Vec<&VideoCollection> = index_map
+    let index: Vec<&VideoCollection> = index_map
         .values()
         .filter(|x| children.contains(&x.get_id()))
         .collect();
     if index.len() == 0 {
-        let videos = collection.get_videos();
-        let video_index_map_mutex = video_index.get_index();
-        let video_index_map = video_index_map_mutex.lock().unwrap();
-        let mut video_index: Vec<&VideoIndexEntry> = video_index_map
-            .values()
-            .filter(|x| videos.contains(&x.id))
-            .collect();
-        video_index.sort_unstable_by_key(|e| &e.title);
-        for entry in video_index {
-            let string_id = entry.id.0.to_string();
+        video_list = get_video_html_list(collection, video_index);
+    } else {
+        video_list = get_collection_html_list(index);
+    }
+    file = file.replace("{videoListEntries}", &video_list.concat());
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(file))
+}
+fn get_video_html_list(
+    collection: &VideoCollection,
+    video_index: web::Data<VideoIndex>,
+) -> Vec<String> {
+    let mut video_list: Vec<String> = Vec::new();
+    let videos = collection.get_videos();
+    let video_index_map_mutex = video_index.get_index();
+    let video_index_map = video_index_map_mutex.lock().unwrap();
+    let mut video_index: Vec<&VideoIndexEntry> = video_index_map
+        .values()
+        .filter(|x| videos.contains(&x.id))
+        .collect();
+    video_index.sort_unstable_by_key(|e| &e.title);
+    for entry in video_index {
+        let string_id = entry.id.0.to_string();
+        video_list.push(
+            consts::VIDEO_LIST_HTML
+                .replace("{itemLink}", &format!("/video/{}", &string_id))
+                .replace("{title}", &entry.title)
+                .replace(
+                    "{thumbnailLink}",
+                    &format!("/thumbnail/video/{}", &string_id),
+                ),
+        )
+    }
+    video_list
+}
+fn get_collection_html_list(mut index: Vec<&VideoCollection>) -> Vec<String> {
+    index.sort_unstable_by_key(|e| e.get_title());
+    let mut video_list: Vec<String> = Vec::new();
+    for entry in index {
+        let string_id = entry.get_id().0.to_string();
+        if entry.has_only_one_video() {
             video_list.push(
                 consts::VIDEO_LIST_HTML
-                    .replace("{itemLink}", &format!("/video/{}", &string_id))
-                    .replace("{title}", &entry.title)
+                    .replace(
+                        "{itemLink}",
+                        &format!("/video/{}", &entry.get_videos()[0].0),
+                    )
+                    .replace("{title}", &entry.get_title())
                     .replace(
                         "{thumbnailLink}",
-                        &format!("/thumbnail/video/{}", &string_id),
+                        &format!("/thumbnail/video/{}", &entry.get_videos()[0].0),
                     ),
-            )
-        }
-    } else {
-        index.sort_unstable_by_key(|e| e.get_title());
-        for entry in index {
-            let string_id = entry.get_id().0.to_string();
+            );
+        } else {
             video_list.push(
                 consts::VIDEO_LIST_HTML
                     .replace("{itemLink}", &format!("/collection/{}", &string_id))
@@ -107,13 +126,10 @@ async fn collection_page(
                         "{thumbnailLink}",
                         &format!("/thumbnail/collection/{}", &string_id),
                     ),
-            )
+            );
         }
     }
-    file = file.replace("{videoListEntries}", &video_list.concat());
-    Ok(HttpResponse::Ok()
-        .content_type(ContentType::html())
-        .body(file))
+    video_list
 }
 #[get("/video/{id}")]
 async fn video_page(

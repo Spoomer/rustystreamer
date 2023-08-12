@@ -12,17 +12,20 @@ pub struct VideoCollection {
     videos: Vec<VideoId>,
 }
 impl VideoCollection {
-    pub fn get_title(&self) -> &str {
-        &self.title
+    pub fn get_children(&self) -> &Vec<CollectionId> {
+        &self.child_collections
     }
     pub fn get_id(&self) -> CollectionId {
         self.id
     }
-    pub fn get_children(&self) -> &Vec<CollectionId> {
-        &self.child_collections
+    pub fn get_title(&self) -> &str {
+        &self.title
     }
     pub fn get_videos(&self) -> &Vec<VideoId> {
         &self.videos
+    }
+    pub(crate) fn has_only_one_video(&self) -> bool {
+        self.videos.len() == 1
     }
     pub fn is_root(&self) -> bool {
         self.root
