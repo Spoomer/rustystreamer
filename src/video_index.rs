@@ -115,7 +115,7 @@ impl VideoIndex {
 }
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct VideoIndexEntry {
-    pub id: u32,
+    pub id: VideoId,
     pub filename: String,
     pub title: String,
     pub filetype: String,
@@ -127,7 +127,7 @@ impl VideoIndexEntry {
         let entries: Vec<VideoIndexEntry> = serde_json::from_str(&index_file)?;
         let mut map: HashMap<VideoId, VideoIndexEntry> = HashMap::new();
         for entry in entries {
-            map.entry(VideoId(entry.id)).or_insert(entry);
+            map.entry(entry.id).or_insert(entry);
         }
         Ok(map)
     }

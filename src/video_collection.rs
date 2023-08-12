@@ -1,13 +1,32 @@
 use std::{collections::HashMap, fs, sync::Mutex};
 
-use crate::{collection_id::CollectionId, consts};
+use crate::{collection_id::CollectionId, consts, video_id::VideoId};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct VideoCollection {
     id: CollectionId,
-    child_collection: Option<Box<VideoCollection>>,
-    name: String,
-    videos: Vec<u32>,
+    root: bool,
+    #[serde(rename = "children")]
+    child_collections: Vec<CollectionId>,
+    title: String,
+    videos: Vec<VideoId>,
+}
+impl VideoCollection {
+    pub fn get_title(&self) -> &str {
+        &self.title
+    }
+    pub fn get_id(&self) -> CollectionId {
+        self.id
+    }
+    pub fn get_children(&self) -> &Vec<CollectionId> {
+        &self.child_collections
+    }
+    pub fn get_videos(&self) -> &Vec<VideoId> {
+        &self.videos
+    }
+    pub fn is_root(&self) -> bool {
+        self.root
+    }
 }
 pub struct VideoCollectionIndex {
     hash: Mutex<blake3::Hash>,
@@ -22,6 +41,9 @@ impl VideoCollectionIndex {
             hash: Mutex::new(hash),
             video_collection: Mutex::new(map),
         })
+    }
+    pub fn get_collections(&self) -> &Mutex<HashMap<CollectionId, VideoCollection>> {
+        &self.video_collection
     }
     pub fn reload_collections(&self) -> Result<bool, std::io::Error> {
         let hash = Self::get_video_collection_file_hash()?;
@@ -39,7 +61,7 @@ impl VideoCollectionIndex {
         Ok(index_hash)
     }
     fn set_video_collection_db_hash_file(hash: blake3::Hash) -> Result<(), std::io::Error> {
-        fs::write(consts::VIDEO_COLLECTION_INDEX_PATH, hash.as_bytes())?;
+        fs::write(consts::COLLECTION_DB_HASH_FILE, hash.as_bytes())?;
         Ok(())
     }
     fn read_from_db() -> Result<HashMap<CollectionId, VideoCollection>, std::io::Error> {

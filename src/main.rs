@@ -15,7 +15,7 @@ async fn main() -> std::io::Result<()> {
     );
     let ip = "0.0.0.0";
     let video_index = web::Data::new(VideoIndex::new()?);
-    let collection_index = web::Data::new(VideoCollectionIndex::new());
+    let collection_index = web::Data::new(VideoCollectionIndex::new()?);
     let config = get_config()?;
     let port = config.port;
     println!("Hosting at http://{}:{}", ip, port);
@@ -25,8 +25,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(config.clone()))
             .app_data(video_index.clone())
             .app_data(collection_index.clone())
-            .service(controller::index)
+            .service(controller::index_page)
             .service(controller::video_page)
+            .service(controller::collection_page)
             .service(controller::load_video)
             .service(actix_files::Files::new("/assets", "./assets"))
             .service(controller::update_timestamp)

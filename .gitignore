@@ -4,5 +4,5 @@ Cargo.lock
 /thumbnails
 videoIndex.json
 videoTimeStamps.json
-/db.hash
+*.hash
 .idea/
