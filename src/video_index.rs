@@ -5,8 +5,10 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use crate::consts;
+use diesel::{Queryable, Selectable};
+
 use crate::video_id::VideoId;
+use crate::{collection_id::CollectionId, consts};
 
 pub struct VideoIndex {
     video_index: Mutex<HashMap<VideoId, VideoIndexEntry>>,
@@ -113,12 +115,15 @@ impl VideoIndex {
         Ok(())
     }
 }
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize, Clone)]
+#[diesel(table_name = crate::schema::Videos)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct VideoIndexEntry {
-    pub id: VideoId,
-    pub filename: String,
+    pub video_id: VideoId,
+    pub file_name: String,
     pub title: String,
-    pub filetype: String,
+    pub file_type: String,
+    pub collection_id: CollectionId,
 }
 
 impl VideoIndexEntry {
@@ -127,7 +132,7 @@ impl VideoIndexEntry {
         let entries: Vec<VideoIndexEntry> = serde_json::from_str(&index_file)?;
         let mut map: HashMap<VideoId, VideoIndexEntry> = HashMap::new();
         for entry in entries {
-            map.entry(entry.id).or_insert(entry);
+            map.entry(entry.video_id).or_insert(entry);
         }
         Ok(map)
     }

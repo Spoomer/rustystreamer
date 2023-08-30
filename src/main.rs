@@ -1,7 +1,9 @@
 use actix_web::{web, App, HttpServer};
+use rustystreamer::db_connection::open_connection;
 use rustystreamer::video_collection::VideoCollectionIndex;
 use rustystreamer::video_index::VideoIndex;
 use std::fs;
+use std::sync::Mutex;
 
 use rustystreamer::config;
 
@@ -14,6 +16,7 @@ async fn main() -> std::io::Result<()> {
         std::env::current_dir()?.to_string_lossy()
     );
     let ip = "0.0.0.0";
+    let db_connection = web::Data::new(Mutex::new(open_connection()?));
     let video_index = web::Data::new(VideoIndex::new()?);
     let collection_index = web::Data::new(VideoCollectionIndex::new()?);
     let config = get_config()?;
@@ -25,6 +28,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(config.clone()))
             .app_data(video_index.clone())
             .app_data(collection_index.clone())
+            .app_data(db_connection)
             .service(controller::index_page)
             .service(controller::video_page)
             .service(controller::collection_page)

@@ -1,34 +1,27 @@
+use crate::{collection_id::CollectionId, consts};
+use diesel::prelude::*;
 use std::{collections::HashMap, fs, sync::Mutex};
 
-use crate::{collection_id::CollectionId, consts, video_id::VideoId};
-
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize)]
+#[diesel(table_name = crate::schema::Collections)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct VideoCollection {
-    id: CollectionId,
-    root: bool,
-    #[serde(rename = "children")]
-    child_collections: Vec<CollectionId>,
+    collection_id: CollectionId,
     title: String,
-    videos: Vec<VideoId>,
+    parent_id: Option<CollectionId>,
 }
 impl VideoCollection {
     pub fn get_children(&self) -> &Vec<CollectionId> {
-        &self.child_collections
+        todo!()
     }
     pub fn get_id(&self) -> CollectionId {
-        self.id
+        self.collection_id
     }
     pub fn get_title(&self) -> &str {
         &self.title
     }
-    pub fn get_videos(&self) -> &Vec<VideoId> {
-        &self.videos
-    }
-    pub(crate) fn has_only_one_video(&self) -> bool {
-        self.videos.len() == 1
-    }
     pub fn is_root(&self) -> bool {
-        self.root
+        self.parent_id.is_none()
     }
 }
 pub struct VideoCollectionIndex {
@@ -72,7 +65,7 @@ impl VideoCollectionIndex {
         let entries: Vec<VideoCollection> = serde_json::from_str(&index_file)?;
         let mut map: HashMap<CollectionId, VideoCollection> = HashMap::new();
         for entry in entries {
-            map.entry(entry.id).or_insert(entry);
+            map.entry(entry.collection_id).or_insert(entry);
         }
         Ok(map)
     }

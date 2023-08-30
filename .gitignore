@@ -6,3 +6,4 @@ videoIndex.json
 videoTimeStamps.json
 *.hash
 .idea/
+*.db
