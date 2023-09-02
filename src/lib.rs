@@ -7,3 +7,4 @@ pub mod video_collection;
 pub mod video_id;
 pub mod video_index;
 pub mod webmodels;
+pub mod thumbnails;
