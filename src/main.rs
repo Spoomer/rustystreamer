@@ -16,7 +16,8 @@ async fn main() -> std::io::Result<()> {
         std::env::current_dir()?.to_string_lossy()
     );
     let ip = "0.0.0.0";
-    let db_connection = web::Data::new(Mutex::new(open_connection()?));
+    let pool = open_connection()?;
+    let db_connection = web::Data::new(pool.clone());
     let video_index = web::Data::new(VideoIndex::new()?);
     let collection_index = web::Data::new(VideoCollectionIndex::new()?);
     let config = get_config()?;

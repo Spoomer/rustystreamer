@@ -1,13 +1,13 @@
+use super::range_header::RangeHeader;
+use super::video_index::VideoIndex;
+use super::{config, consts};
 use crate::collection_id::CollectionId;
-use crate::db_connection::open_connection;
+use crate::db_connection::{execute, open_connection, Pool};
+use crate::schema::Collections::dsl::Collections;
 use crate::video_collection::{VideoCollection, VideoCollectionIndex};
 use crate::video_id::VideoId;
 use crate::video_index::VideoIndexEntry;
 use crate::webmodels::VideoTimeStamp;
-use crate::schema::Collections::dsl::Collections;
-use super::range_header::RangeHeader;
-use super::video_index::VideoIndex;
-use super::{config, consts};
 use actix_web::http::header::{ContentDisposition, DispositionType};
 use actix_web::{
     get,
@@ -25,13 +25,11 @@ use std::{
 };
 
 #[get("/")]
-async fn index_page(
-    db_connection: web::Data<Mutex<SqliteConnection>>,
-) -> Result<impl Responder, actix_web::Error> {
+async fn index_page(db_connection: web::Data<Pool>) -> Result<impl Responder, actix_web::Error> {
     let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path)?;
 
-    let video_list = get_collection_html_list(db_connection)?;
+    let video_list = get_collection_html_list(db_connection).await?;
 
     file = file.replace("{videoListEntries}", &video_list.concat());
     Ok(HttpResponse::Ok()
@@ -64,7 +62,7 @@ async fn collection_page(
     if index.len() == 0 {
         video_list = get_video_html_list(collection, video_index)?;
     } else {
-        video_list = get_collection_html_list(index)?;
+        video_list = get_collection_html_list(index).await?;
     }
     file = file.replace("{videoListEntries}", &video_list.concat());
     Ok(HttpResponse::Ok()
@@ -97,15 +95,22 @@ fn get_video_html_list(
     }
     Ok(video_list)
 }
-fn get_collection_html_list(
-    db_connection: web::Data<Mutex<SqliteConnection>>,
+async fn get_collection_html_list(
+    db_connection: web::Data<Pool>,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-    let conn = db_connection.get_mut()?;
-    let collections: Vec<VideoCollection> = Collections
-        .filter(Collections::parent_id.is_null())
-        .order_by(Collections::title)
-        .select(VideoCollection::as_select())
-        .load(conn)?;
+    let collections: Vec<VideoCollection> = execute(&db_connection, |conn| {
+        let mut stmt =
+            conn.prepare("SELECT * FROM Collections WHERE parent_id IS NULL ORDER BY title;");
+        stmt.query_map([], |row| {
+            Ok(VideoCollection {
+                collection_id: row.get(0)?,
+                title: row.get(1)?,
+                parent_id: row.get(2)?,
+            })
+        })
+        .collect()
+    })
+    .await?;
     let mut video_list: Vec<String> = Vec::new();
     for entry in collections {
         let string_id = entry.get_id().0.to_string();
