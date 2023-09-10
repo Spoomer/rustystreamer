@@ -4,7 +4,6 @@ pub mod consts;
 pub mod controller;
 pub mod db_connection;
 pub mod range_header;
-pub mod schema;
 pub mod video_collection;
 pub mod video_id;
 pub mod video_index;

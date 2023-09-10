@@ -1,18 +1,19 @@
 use crate::{collection_id::CollectionId, consts};
-use diesel::prelude::*;
 use std::{collections::HashMap, fs, sync::Mutex};
 
-#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize)]
-#[diesel(table_name = crate::schema::Collections)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct VideoCollection {
     collection_id: CollectionId,
     title: String,
     parent_id: Option<CollectionId>,
 }
 impl VideoCollection {
-    pub fn get_children(&self) -> &Vec<CollectionId> {
-        todo!()
+    pub fn from_rusqlite_row(row: &rusqlite::Row) -> Result<VideoCollection, rusqlite::Error> {
+        Ok(VideoCollection {
+            collection_id: row.get(0)?,
+            title: row.get(1)?,
+            parent_id: row.get(2)?,
+        })
     }
     pub fn get_id(&self) -> CollectionId {
         self.collection_id

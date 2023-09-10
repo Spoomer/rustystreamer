@@ -1,15 +1,8 @@
-use diesel::backend::Backend;
-use diesel::{
-    deserialize::{self, FromSql, FromSqlRow},
-    serialize::{self, ToSql},
-    sql_types::Integer,
-    sqlite::Sqlite,
-};
+use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 /// Wrapper for u32 as VideoId
-#[derive(FromSqlRow, Serialize, Deserialize, Clone, Copy, Eq, Hash, PartialEq, Debug)]
-#[diesel(sql_type = Integer)]
+#[derive(Serialize, Deserialize, Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub struct VideoId(pub u32);
 
 impl From<u32> for VideoId {
@@ -17,16 +10,14 @@ impl From<u32> for VideoId {
         VideoId(value)
     }
 }
-
-impl FromSql<diesel::sql_types::Integer, Sqlite> for VideoId {
-    fn from_sql(bytes: <Sqlite as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
-        let id = i32::from_sql(bytes)? as u32;
-        Ok(VideoId(id))
+impl FromSql for VideoId {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        let int = value.as_i64()?;
+        Ok(VideoId(int as u32))
     }
 }
-impl ToSql<diesel::sql_types::Integer, Sqlite> for VideoId {
-    fn to_sql<'b>(&'b self, out: &mut serialize::Output<'b, '_, Sqlite>) -> serialize::Result {
-        let id = self.0 as i32;
-        <i32 as serialize::ToSql<Integer, Sqlite>>::to_sql(&id, out)
+impl ToSql for VideoId {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        u32::to_sql(&self.0)
     }
 }

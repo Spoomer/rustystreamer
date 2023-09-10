@@ -5,8 +5,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use diesel::{Queryable, Selectable};
-
 use crate::video_id::VideoId;
 use crate::{collection_id::CollectionId, consts};
 
@@ -115,18 +113,28 @@ impl VideoIndex {
         Ok(())
     }
 }
-#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize, Clone)]
-#[diesel(table_name = crate::schema::Videos)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct VideoIndexEntry {
-    pub video_id: VideoId,
-    pub file_name: String,
-    pub title: String,
-    pub file_type: String,
-    pub collection_id: CollectionId,
+    video_id: VideoId,
+    file_name: String,
+    title: String,
+    file_type: String,
+    collection_id: CollectionId,
 }
 
 impl VideoIndexEntry {
+    pub fn get_id(&self) -> VideoId {
+        self.video_id
+    }
+    pub fn get_title(&self) -> &str {
+        &self.title
+    }
+    pub fn get_file_name(&self) -> &str {
+        &self.file_name
+    }
+    pub fn get_file_type(&self) -> &str {
+        &self.file_type
+    }
     fn load_entries_hashmap() -> Result<HashMap<VideoId, VideoIndexEntry>, std::io::Error> {
         let index_file = std::fs::read_to_string(consts::VIDEO_INDEX_PATH)?;
         let entries: Vec<VideoIndexEntry> = serde_json::from_str(&index_file)?;
@@ -135,5 +143,14 @@ impl VideoIndexEntry {
             map.entry(entry.video_id).or_insert(entry);
         }
         Ok(map)
+    }
+    pub fn from_rusqlite_row(row: &rusqlite::Row) -> Result<VideoIndexEntry, rusqlite::Error> {
+        Ok(VideoIndexEntry {
+            video_id: row.get(0)?,
+            file_name: row.get(1)?,
+            title: row.get(2)?,
+            collection_id: row.get(3)?,
+            file_type: row.get(4)?,
+        })
     }
 }

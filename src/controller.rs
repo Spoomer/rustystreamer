@@ -2,23 +2,21 @@ use super::range_header::RangeHeader;
 use super::video_index::VideoIndex;
 use super::{config, consts};
 use crate::collection_id::CollectionId;
-use crate::db_connection::{execute, open_connection, Pool};
-use crate::schema::Collections::dsl::Collections;
-use crate::video_collection::{VideoCollection, VideoCollectionIndex};
+use crate::db_connection::{execute_get_vec, get_connection, Pool};
+use crate::video_collection::VideoCollection;
 use crate::video_id::VideoId;
 use crate::video_index::VideoIndexEntry;
 use crate::webmodels::VideoTimeStamp;
+use actix_web::error::ErrorInternalServerError;
 use actix_web::http::header::{ContentDisposition, DispositionType};
 use actix_web::{
     get,
     http::header::{self, ContentType},
     post, web, HttpRequest, HttpResponse, Responder,
 };
-use diesel::{prelude::*, ExpressionMethods, QueryDsl};
 use rand::Rng;
 use std::error::Error;
 use std::fs;
-use std::sync::Mutex;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
@@ -29,7 +27,9 @@ async fn index_page(db_connection: web::Data<Pool>) -> Result<impl Responder, ac
     let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path)?;
 
-    let video_list = get_collection_html_list(db_connection).await?;
+    let video_list = get_root_collection_html_list(db_connection)
+        .await
+        .map_err(ErrorInternalServerError)?;
 
     file = file.replace("{videoListEntries}", &video_list.concat());
     Ok(HttpResponse::Ok()
@@ -40,53 +40,67 @@ async fn index_page(db_connection: web::Data<Pool>) -> Result<impl Responder, ac
 #[get("/collection/{id}")]
 async fn collection_page(
     id: web::Path<u32>,
-    video_collection_index: web::Data<VideoCollectionIndex>,
-    video_index: web::Data<VideoIndex>,
+    db_connection: web::Data<Pool>,
 ) -> Result<impl Responder, actix_web::Error> {
     let path: PathBuf = [consts::VIEW_PATH, "index.html"].iter().collect();
     let mut file = std::fs::read_to_string(path)?;
-    let video_list: Vec<String>;
-
-    let index_map_mutex = video_collection_index.get_collections();
-    let index_map = index_map_mutex.lock().unwrap();
-    let collection;
-    match index_map.get(&CollectionId(*id)) {
-        Some(coll) => collection = coll,
-        None => return Err(actix_web::error::ErrorNotFound("collection not found")),
-    }
-    let children: &Vec<CollectionId> = collection.get_children();
-    let index: Vec<&VideoCollection> = index_map
-        .values()
-        .filter(|x| children.contains(&x.get_id()))
-        .collect();
-    if index.len() == 0 {
-        video_list = get_video_html_list(collection, video_index)?;
-    } else {
-        video_list = get_collection_html_list(index).await?;
-    }
+    let mut video_list: Vec<String> = Vec::new();
+    // let id1 = id.clone();
+    // let collection = execute_single(&db_connection, move |conn| {
+    //     let mut stmt = conn.prepare("SELECT * FROM Collections WHERE collection_id = ?1;")?;
+    //     let result = stmt.query_row([id1], VideoCollection::from_rusqlite_row)?;
+    //     Ok(result)
+    // })
+    // .await
+    // .map_err(ErrorInternalServerError)?;
+    let collection_id_cloned_2 = id.clone();
+    let child_collection = execute_get_vec(&db_connection, move |conn| {
+        let mut stmt =
+            conn.prepare("SELECT * FROM Collections WHERE parent_id = ?1 ORDER BY title;")?;
+        let result: Result<Vec<VideoCollection>, rusqlite::Error> = stmt
+            .query_map([collection_id_cloned_2], VideoCollection::from_rusqlite_row)?
+            .map(|r| r)
+            .collect();
+        Ok(result?)
+    })
+    .await
+    .map_err(ErrorInternalServerError)?;
+    let mut collection_html_list = get_collection_html_list(&db_connection, &child_collection)
+        .await
+        .map_err(ErrorInternalServerError)?;
+    video_list.append(&mut collection_html_list);
+    let collection_id = CollectionId(id.clone());
+    let mut video_hmtl_list = get_video_html_list(collection_id, &db_connection)
+        .await
+        .map_err(ErrorInternalServerError)?;
+    video_list.append(&mut video_hmtl_list);
     file = file.replace("{videoListEntries}", &video_list.concat());
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
         .body(file))
 }
-fn get_video_html_list(
-    collection: &VideoCollection,
-    video_index: web::Data<VideoIndex>,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    use crate::schema::Videos::dsl::*;
+
+async fn get_video_html_list(
+    collection_id: CollectionId,
+    db_connection: &web::Data<Pool>,
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
     let mut video_list: Vec<String> = Vec::new();
-    let conn = &mut open_connection()?;
-    let videos: Vec<VideoIndexEntry> = Videos
-        .order_by(title)
-        .filter(collection_id.eq(collection.get_id()))
-        .select(VideoIndexEntry::as_select())
-        .load(conn)?;
+    let videos: Vec<VideoIndexEntry> = execute_get_vec(&db_connection, move |conn| {
+        let mut statement =
+            conn.prepare("SELECT * FROM Videos WHERE collection_id = ?1 ORDER BY title;")?;
+        let result: Result<Vec<VideoIndexEntry>, rusqlite::Error> = statement
+            .query_map([collection_id], VideoIndexEntry::from_rusqlite_row)?
+            .map(|r| r)
+            .collect();
+        Ok(result?)
+    })
+    .await?;
     for entry in videos {
-        let string_id = entry.video_id.0.to_string();
+        let string_id = entry.get_id().0.to_string();
         video_list.push(
             consts::VIDEO_LIST_HTML
                 .replace("{itemLink}", &format!("/video/{}", &string_id))
-                .replace("{title}", &entry.title)
+                .replace("{title}", &entry.get_title())
                 .replace(
                     "{thumbnailLink}",
                     &format!("/thumbnail/video/{}", &string_id),
@@ -95,36 +109,38 @@ fn get_video_html_list(
     }
     Ok(video_list)
 }
-async fn get_collection_html_list(
+async fn get_root_collection_html_list(
     db_connection: web::Data<Pool>,
-) -> Result<Vec<String>, Box<dyn Error>> {
-    let collections: Vec<VideoCollection> = execute(&db_connection, |conn| {
+) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
+    let collections: Vec<VideoCollection> = execute_get_vec(&db_connection, |conn| {
         let mut stmt =
-            conn.prepare("SELECT * FROM Collections WHERE parent_id IS NULL ORDER BY title;");
-        stmt.query_map([], |row| {
-            Ok(VideoCollection {
-                collection_id: row.get(0)?,
-                title: row.get(1)?,
-                parent_id: row.get(2)?,
-            })
-        })
-        .collect()
+            conn.prepare("SELECT * FROM Collections WHERE parent_id IS NULL ORDER BY title;")?;
+        let result: Result<Vec<VideoCollection>, rusqlite::Error> = stmt
+            .query_map([], VideoCollection::from_rusqlite_row)?
+            .map(|r| r)
+            .collect();
+        Ok(result?)
     })
     .await?;
+    Ok(get_collection_html_list(&db_connection, &collections).await?)
+}
+async fn get_collection_html_list(
+    db_connection: &web::Data<Pool>,
+    collections: &Vec<VideoCollection>,
+) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let mut video_list: Vec<String> = Vec::new();
     for entry in collections {
         let string_id = entry.get_id().0.to_string();
-        if entry.has_only_one_video() {
+        if let Some(video) =
+            get_video_if_single_in_collection(db_connection, entry.get_id()).await?
+        {
             video_list.push(
                 consts::VIDEO_LIST_HTML
-                    .replace(
-                        "{itemLink}",
-                        &format!("/video/{}", &entry.get_videos()[0].0),
-                    )
+                    .replace("{itemLink}", &format!("/video/{}", &video.get_id().0))
                     .replace("{title}", &entry.get_title())
                     .replace(
                         "{thumbnailLink}",
-                        &format!("/thumbnail/video/{}", &entry.get_videos()[0].0),
+                        &format!("/thumbnail/video/{}", &video.get_id().0),
                     ),
             );
         } else {
@@ -141,6 +157,29 @@ async fn get_collection_html_list(
     }
     Ok(video_list)
 }
+/// Gets a video entry, if there is only one video in the collection
+async fn get_video_if_single_in_collection(
+    db_connection: &web::Data<Pool>,
+    collection_id: CollectionId,
+) -> Result<Option<VideoIndexEntry>, Box<dyn Error + Send + Sync>> {
+    let conn = get_connection(&db_connection).await?;
+    let mut stmt = conn.prepare("Select * FROM Videos WHERE collection_id = ?1;")?;
+    let mut query = stmt.query([collection_id.0])?;
+    let mut single: Option<VideoIndexEntry> = None;
+    loop {
+        if let Some(row) = query.next()? {
+            //found 2. row - not single
+            if single.is_some() {
+                return Ok(Option::None);
+            }
+            single = Some(VideoIndexEntry::from_rusqlite_row(row)?);
+            continue;
+        }
+        break;
+    }
+    Ok(single)
+}
+
 #[get("/video/{id}")]
 async fn video_page(
     id: web::Path<u32>,
@@ -151,7 +190,7 @@ async fn video_page(
             let path: PathBuf = [consts::VIEW_PATH, "video.html"].iter().collect();
             let mut file = std::fs::read_to_string(path)?;
             file = file
-                .replace("{title}", &video_details.title)
+                .replace("{title}", &video_details.get_title())
                 .replace("{videoId}", &id.to_string());
             return Ok(HttpResponse::Ok()
                 .content_type(ContentType::html())
@@ -202,7 +241,7 @@ async fn load_video(
             if !header_map.contains_key(header::RANGE) {
                 return Ok(HttpResponse::BadRequest().finish());
             }
-            let path: PathBuf = [&(data.video_path), &video.filename].iter().collect();
+            let path: PathBuf = [&(data.video_path), video.get_file_name()].iter().collect();
             let size = std::fs::metadata(&path)?.len();
             let range = header_map.get(header::RANGE).unwrap();
             let range_header = RangeHeader::parse(range, size)?;
@@ -223,7 +262,7 @@ async fn load_video(
 
             let response = HttpResponse::PartialContent()
                 .content_type(ContentType(
-                    format!("video/{}", &video.filetype)
+                    format!("video/{}", video.get_file_type())
                         .parse::<mime::Mime>()
                         .unwrap(),
                 ))
