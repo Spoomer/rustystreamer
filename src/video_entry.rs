@@ -4,8 +4,8 @@ use crate::video_id::VideoId;
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct VideoEntry {
     video_id: VideoId,
-    file_name: String,
     title: String,
+    file_name: String,
     file_type: String,
     collection_id: CollectionId,
 }
@@ -27,10 +27,10 @@ impl VideoEntry {
     pub fn from_rusqlite_row(row: &rusqlite::Row) -> Result<VideoEntry, rusqlite::Error> {
         Ok(VideoEntry {
             video_id: row.get(0)?,
-            file_name: row.get(1)?,
-            title: row.get(2)?,
-            collection_id: row.get(3)?,
-            file_type: row.get(4)?,
+            title: row.get(1)?,
+            file_name: row.get(2)?,
+            file_type: row.get(3)?,
+            collection_id: row.get(4)?,
         })
     }
 }

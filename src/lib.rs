@@ -11,3 +11,4 @@ pub mod video_collection;
 pub mod video_entry;
 pub mod video_id;
 pub mod video_time_stamps;
+pub mod thumbnails;

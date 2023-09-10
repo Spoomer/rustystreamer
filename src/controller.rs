@@ -1,12 +1,13 @@
+use crate::collection_id::CollectionId;
+use crate::thumbnails::get_thumbnail_path;
+use crate::video_id::VideoId;
 use super::range_header::RangeHeader;
 use super::{config, consts};
-use crate::collection_id::CollectionId;
 use crate::db_connection::Pool;
 use crate::html_helper::{
     get_collection_html_list, get_root_collection_html_list, get_video_html_list,
 };
 use crate::queries::{get_child_collections, get_timestamp_store_by_id, get_video_entry_by_id};
-use crate::video_id::VideoId;
 use crate::video_time_stamps::VideoTimeStamp;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::http::header::{ContentDisposition, DispositionType};
@@ -15,8 +16,6 @@ use actix_web::{
     http::header::{self, ContentType},
     post, web, HttpRequest, HttpResponse, Responder,
 };
-use rand::Rng;
-use std::fs;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
@@ -179,32 +178,4 @@ async fn get_thumbnail(
             disposition: DispositionType::Attachment,
             parameters: vec![],
         }))
-}
-
-fn get_thumbnail_path(
-    id: &String,
-    category: &String,
-    thumbnail_root_path: &str,
-) -> Result<PathBuf, actix_web::Error> {
-    let striped_option = thumbnail_root_path.strip_suffix('/');
-    let striped_thumbnail_root_path: &str = match striped_option {
-        Some(striped) => striped,
-        None => thumbnail_root_path,
-    };
-    let files: Vec<_> = fs::read_dir(format!(
-        "{}/{}/{}",
-        striped_thumbnail_root_path, category, id
-    ))?
-    .collect();
-    if files.is_empty() {
-        return Err(actix_web::error::ErrorNotFound("no thumbnail available"));
-    }
-    let mut rng = rand::thread_rng();
-    let random = rng.gen_range(0..(files.len() - 1));
-    match &files[random] {
-        Ok(dir) => Ok(dir.path()),
-        Err(err) => {
-            Err(err).map_err(|err| actix_web::error::ErrorInternalServerError(err.to_string()))
-        }
-    }
 }
