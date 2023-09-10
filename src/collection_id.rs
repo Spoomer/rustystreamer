@@ -1,7 +1,4 @@
-use rusqlite::{
-    types::{FromSql, ToSqlOutput},
-    ToSql,
-};
+use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 /// Wrapper for u32 as VideoId

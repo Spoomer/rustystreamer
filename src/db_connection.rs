@@ -22,8 +22,8 @@ pub async fn get_connection(
     Ok(result)
 }
 
-pub async fn execute_get_vec<'a, T: Send + Sized + 'static>(
-    pool: &'a Pool,
+pub async fn execute_get_vec<T: Send + Sized + 'static>(
+    pool: &Pool,
     func: impl FnOnce(Connection) -> Result<Vec<T>, Box<dyn std::error::Error + Send + Sync>>
         + Send
         + 'static,
@@ -36,8 +36,8 @@ pub async fn execute_get_vec<'a, T: Send + Sized + 'static>(
     Ok(result)
 }
 
-pub async fn execute_single<'a, T: Send + Sized + 'static>(
-    pool: &'a Pool,
+pub async fn execute_single<T: Send + Sized + 'static>(
+    pool: &Pool,
     func: impl FnOnce(Connection) -> Result<T, Box<dyn std::error::Error + Send + Sync>>
         + Send
         + 'static,
@@ -49,4 +49,3 @@ pub async fn execute_single<'a, T: Send + Sized + 'static>(
     let result = web::block(move || func(conn)).await??;
     Ok(result)
 }
-const GET_ALL_QUERY: &str = "SELECT * FROM ";
