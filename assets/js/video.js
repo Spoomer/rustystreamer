@@ -3,27 +3,25 @@ videoplayer.onloadedmetadata = function () {
     getTimestamp()
 };
 
-let intervalSet = false;
+let intervalId = null;
 videoplayer.onplay =
     function () {
-        if (!intervalSet) {
-            setInterval(function () { sendTimestamp(); }, 5000);
-            intervalSet = true;
+        if (!intervalId) {
+            intervalId = setInterval(function () { sendTimestamp(); }, 5000);
         }
     };
-
-document.onvisibilitychange = () => {
-    if (document.visibilityState === "hidden") {
-        sendTimestamp();
-    }
-};
+videoplayer.onpause = function () { if (intervalId){
+    sendTimestamp();
+    clearInterval(intervalId);
+    intervalId =null;
+}};
 
 function sendTimestamp() {
     fetch("/update-video-timestamp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         keepalive: true,
-        body: JSON.stringify({ id: videoplayer.getAttribute("data-videoId"), timestamp: Math.floor(videoplayer.currentTime) })
+        body: JSON.stringify({ video_id: parseInt(videoplayer.getAttribute("data-videoId")), timestamp: Math.floor(videoplayer.currentTime) })
     }).then(x => x.ok);
 }
 
