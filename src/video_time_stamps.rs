@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::video_id::VideoId;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub(crate) struct VideoTimeStamp {
     video_id: VideoId,
     timestamp: u64,
 }
+
 impl VideoTimeStamp {
     pub fn get_video_id(&self) -> VideoId {
         self.video_id

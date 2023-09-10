@@ -100,16 +100,27 @@ pub(crate) async fn update_timestamp(
     db_connection: &web::Data<Pool>,
     video_time_stamp: VideoTimeStamp,
 ) -> Result<(), Box<MultiThreadableError>> {
-    let connection = get_connection(&db_connection).await?;
-    let _ = web::block(move || {
+    let connection = get_connection(db_connection).await?;
+    let vts = video_time_stamp;
+    let changed_rows = web::block(move || {
         connection.execute(
             "UPDATE VideoTimeStamps SET timestamp = ?1 WHERE video_id = ?2",
-            [
-                video_time_stamp.get_timestamp(),
-                video_time_stamp.get_video_id().0 as u64,
-            ],
+            [vts.get_timestamp(), vts.get_video_id().0 as u64],
         )
     })
     .await??;
+    let connection = get_connection(db_connection).await?;
+    if changed_rows == 0 {
+        let _ = web::block(move || {
+            connection.execute(
+                "INSERT INTO VideoTimeStamps(video_id, timestamp) VALUES(?1, ?2);",
+                [
+                    video_time_stamp.get_video_id().0 as u64,
+                    video_time_stamp.get_timestamp(),
+                ],
+            )
+        })
+        .await??;
+    }
     Ok(())
 }
