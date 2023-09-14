@@ -21,6 +21,17 @@ pub(crate) async fn get_video_entry_by_id(
     })
     .await
 }
+pub(crate) async fn get_all_videos(
+    db_connection: web::Data<Pool>,
+) -> Result<Vec<VideoEntry>, Box<MultiThreadableError>> {
+    execute_get_vec(&db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Videos;")?;
+        let result: Result<Vec<VideoEntry>, rusqlite::Error> =
+            stmt.query_map([], VideoEntry::from_rusqlite_row)?.collect();
+        Ok(result?)
+    })
+    .await
+}
 /// Gets a video entry, if there is only one video in the collection
 pub(crate) async fn get_video_if_single_in_collection(
     db_connection: &web::Data<Pool>,

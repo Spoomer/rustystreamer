@@ -1,13 +1,15 @@
-use crate::collection_id::CollectionId;
-use crate::thumbnails::get_thumbnail_path;
-use crate::video_id::VideoId;
 use super::range_header::RangeHeader;
 use super::{config, consts};
+use crate::collection_id::CollectionId;
 use crate::db_connection::Pool;
 use crate::html_helper::{
     get_collection_html_list, get_root_collection_html_list, get_video_html_list,
 };
-use crate::queries::{get_child_collections, get_timestamp_store_by_id, get_video_entry_by_id};
+use crate::queries::{
+    get_all_videos, get_child_collections, get_timestamp_store_by_id, get_video_entry_by_id,
+};
+use crate::thumbnails::get_thumbnail_path;
+use crate::video_id::VideoId;
 use crate::video_time_stamps::VideoTimeStamp;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::http::header::{ContentDisposition, DispositionType};
@@ -16,6 +18,8 @@ use actix_web::{
     http::header::{self, ContentType},
     post, web, HttpRequest, HttpResponse, Responder,
 };
+use serde_json::json;
+use std::collections::HashSet;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
@@ -178,4 +182,41 @@ async fn get_thumbnail(
             disposition: DispositionType::Attachment,
             parameters: vec![],
         }))
+}
+#[get("/uncategorized")]
+async fn get_uncategorized_videos(
+    db_connection: web::Data<Pool>,
+    data: web::Data<config::Config>,
+) -> Result<impl Responder, actix_web::Error> {
+    let all_videos: Vec<String> =
+        get_all_videos_in_video_path(data).map_err(ErrorInternalServerError)?;
+
+    let categorized_videos: HashSet<String> = get_all_videos(db_connection)
+        .await
+        .map_err(ErrorInternalServerError)?
+        .into_iter()
+        .map(|v| String::from(v.get_file_name()))
+        .collect();
+    let mut uncategorized_videos: Vec<String> = Vec::new();
+    for video in all_videos.into_iter() {
+        if !categorized_videos.contains(&video) {
+            uncategorized_videos.push(video);
+        }
+    }
+    Ok(HttpResponse::Ok().body(json!(uncategorized_videos).to_string()))
+}
+fn get_all_videos_in_video_path(
+    data: web::Data<config::Config>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let read_dir = std::fs::read_dir(&data.video_path)?;
+    let videos = read_dir
+        .filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                e.path()
+                    .file_name()
+                    .and_then(|n| n.to_str().map(String::from))
+            })
+        })
+        .collect();
+    Ok(videos)
 }

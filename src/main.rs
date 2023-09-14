@@ -43,6 +43,7 @@ async fn main() -> std::io::Result<()> {
             .service(controller::update_timestamp)
             .service(controller::timestamp)
             .service(controller::get_thumbnail)
+            .service(controller::get_uncategorized_videos)
     })
     .bind((ip, port))?
     .run()
