@@ -10,6 +10,7 @@ use crate::{
     video_time_stamps::VideoTimeStamp,
 };
 use rusqlite::OptionalExtension;
+
 pub(crate) async fn get_video_entry_by_id(
     db_connection: web::Data<Pool>,
     id: VideoId,
@@ -19,8 +20,25 @@ pub(crate) async fn get_video_entry_by_id(
         let result = stmt.query_row([id], VideoEntry::from_rusqlite_row)?;
         Ok(result)
     })
-    .await
+        .await
 }
+
+pub(crate) async fn get_video_entry_by_collection_id(
+    db_connection: &web::Data<Pool>,
+    collection_id: CollectionId,
+) -> Result<Vec<VideoEntry>, Box<MultiThreadableError>> {
+    let videos: Vec<VideoEntry> = execute_get_vec(&db_connection, move |conn| {
+        let mut statement =
+            conn.prepare("SELECT * FROM Videos WHERE collection_id = ?1 ORDER BY title;")?;
+        let result: Result<Vec<VideoEntry>, rusqlite::Error> = statement
+            .query_map([collection_id], VideoEntry::from_rusqlite_row)?
+            .collect();
+        Ok(result?)
+    })
+        .await?;
+    Ok(videos)
+}
+
 pub(crate) async fn get_all_videos(
     db_connection: web::Data<Pool>,
 ) -> Result<Vec<VideoEntry>, Box<MultiThreadableError>> {
@@ -30,8 +48,9 @@ pub(crate) async fn get_all_videos(
             stmt.query_map([], VideoEntry::from_rusqlite_row)?.collect();
         Ok(result?)
     })
-    .await
+        .await
 }
+
 /// Gets a video entry, if there is only one video in the collection
 pub(crate) async fn get_video_if_single_in_collection(
     db_connection: &web::Data<Pool>,
@@ -45,7 +64,7 @@ pub(crate) async fn get_video_if_single_in_collection(
         if let Some(row) = query.next()? {
             //found 2. row - not single
             if single.is_some() {
-                return Ok(Option::None);
+                return Ok(None);
             }
             single = Some(VideoEntry::from_rusqlite_row(row)?);
             continue;
@@ -54,6 +73,7 @@ pub(crate) async fn get_video_if_single_in_collection(
     }
     Ok(single)
 }
+
 pub(crate) async fn get_root_collections(
     db_connection: &web::Data<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>,
 ) -> Result<Vec<VideoCollection>, Box<MultiThreadableError>> {
@@ -65,9 +85,10 @@ pub(crate) async fn get_root_collections(
             .collect();
         Ok(result?)
     })
-    .await?;
+        .await?;
     Ok(collections)
 }
+
 pub(crate) async fn get_child_collections(
     db_connection: &web::Data<Pool>,
     collection_id: CollectionId,
@@ -80,8 +101,9 @@ pub(crate) async fn get_child_collections(
             .collect();
         Ok(result?)
     })
-    .await
+        .await
 }
+
 pub(crate) async fn _get_collection_by_id(
     db_connection: &web::Data<Pool>,
     collection_id: CollectionId,
@@ -91,8 +113,9 @@ pub(crate) async fn _get_collection_by_id(
         let result = stmt.query_row([collection_id], VideoCollection::from_rusqlite_row)?;
         Ok(result)
     })
-    .await
+        .await
 }
+
 pub(crate) async fn get_timestamp_store_by_id(
     db_connection: &web::Data<Pool>,
     video_id: VideoId,
@@ -104,7 +127,7 @@ pub(crate) async fn get_timestamp_store_by_id(
             .optional()?;
         Ok(result)
     })
-    .await
+        .await
 }
 
 pub(crate) async fn update_timestamp(
@@ -119,7 +142,7 @@ pub(crate) async fn update_timestamp(
             [vts.get_timestamp(), vts.get_video_id().0 as u64],
         )
     })
-    .await??;
+        .await??;
     let connection = get_connection(db_connection).await?;
     if changed_rows == 0 {
         let _ = web::block(move || {
@@ -131,7 +154,7 @@ pub(crate) async fn update_timestamp(
                 ],
             )
         })
-        .await??;
+            .await??;
     }
     Ok(())
 }

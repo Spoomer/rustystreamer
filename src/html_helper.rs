@@ -3,41 +3,55 @@ use actix_web::web;
 use crate::{
     collection_id::CollectionId,
     consts,
-    db_connection::{execute_get_vec, Pool},
+    db_connection::Pool,
     queries::{get_root_collections, get_video_if_single_in_collection},
     util::MultiThreadableError,
     video_collection::VideoCollection,
-    video_entry::VideoEntry,
 };
+use crate::queries::get_video_entry_by_collection_id;
 
 pub(crate) async fn get_video_html_list(
     collection_id: CollectionId,
     db_connection: &web::Data<Pool>,
 ) -> Result<Vec<String>, Box<MultiThreadableError>> {
-    let mut video_list: Vec<String> = Vec::new();
-    let videos: Vec<VideoEntry> = execute_get_vec(db_connection, move |conn| {
-        let mut statement =
-            conn.prepare("SELECT * FROM Videos WHERE collection_id = ?1 ORDER BY title;")?;
-        let result: Result<Vec<VideoEntry>, rusqlite::Error> = statement
-            .query_map([collection_id], VideoEntry::from_rusqlite_row)?
+    let video_entries = get_video_entry_by_collection_id(db_connection, collection_id).await?;
+    let videos: Vec<CreateVideoHtmlListParameter> =
+        video_entries.iter()
+            .map(|entry| {
+                let string_id = entry.get_id().0.to_string();
+                CreateVideoHtmlListParameter {
+                    item_link: format!("/video/{}", string_id),
+                    title: entry.get_title().to_string(),
+                    thumbnail_id: string_id,
+                }
+            })
             .collect();
-        Ok(result?)
-    })
-    .await?;
-    for entry in videos {
-        let string_id = entry.get_id().0.to_string();
+    let video_list = create_video_html_list(videos);
+    Ok(video_list)
+}
+
+pub(crate) struct CreateVideoHtmlListParameter {
+    pub item_link: String,
+    pub title: String,
+    pub thumbnail_id: String,
+}
+
+pub(crate) fn create_video_html_list(create_video_html_list_param: Vec<CreateVideoHtmlListParameter>) -> Vec<String> {
+    let mut video_list = Vec::<String>::new();
+    for param in create_video_html_list_param {
         video_list.push(
             consts::VIDEO_LIST_HTML
-                .replace("{itemLink}", &format!("/video/{}", &string_id))
-                .replace("{title}", entry.get_title())
+                .replace("{itemLink}", &format!("/video/{}", param.item_link))
+                .replace("{title}", &param.title)
                 .replace(
                     "{thumbnailLink}",
-                    &format!("/thumbnail/video/{}", &string_id),
+                    &format!("/thumbnail/video/{}", &param.thumbnail_id),
                 ),
         )
     }
-    Ok(video_list)
+    video_list
 }
+
 pub(crate) async fn get_root_collection_html_list(
     db_connection: web::Data<Pool>,
 ) -> Result<Vec<String>, Box<MultiThreadableError>> {

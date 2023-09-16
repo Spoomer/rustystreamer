@@ -2,9 +2,7 @@ use super::range_header::RangeHeader;
 use super::{config, consts};
 use crate::collection_id::CollectionId;
 use crate::db_connection::Pool;
-use crate::html_helper::{
-    get_collection_html_list, get_root_collection_html_list, get_video_html_list,
-};
+use crate::html_helper::{create_video_html_list, CreateVideoHtmlListParameter, get_collection_html_list, get_root_collection_html_list, get_video_html_list};
 use crate::queries::{
     get_all_videos, get_child_collections, get_timestamp_store_by_id, get_video_entry_by_id,
 };
@@ -18,12 +16,13 @@ use actix_web::{
     http::header::{self, ContentType},
     post, web, HttpRequest, HttpResponse, Responder,
 };
-use serde_json::json;
 use std::collections::HashSet;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
 };
+use crate::util::MultiThreadableError;
+use html_escape;
 
 #[get("/")]
 async fn index_page(db_connection: web::Data<Pool>) -> Result<impl Responder, actix_web::Error> {
@@ -56,10 +55,10 @@ async fn collection_page(
         .map_err(ErrorInternalServerError)?;
     video_list.append(&mut collection_html_list);
     let collection_id = CollectionId(*id);
-    let mut video_hmtl_list = get_video_html_list(collection_id, &db_connection)
+    let mut video_html_list = get_video_html_list(collection_id, &db_connection)
         .await
         .map_err(ErrorInternalServerError)?;
-    video_list.append(&mut video_hmtl_list);
+    video_list.append(&mut video_html_list);
     file = file.replace("{videoListEntries}", &video_list.concat());
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
@@ -183,17 +182,42 @@ async fn get_thumbnail(
             parameters: vec![],
         }))
 }
+
 #[get("/uncategorized")]
-async fn get_uncategorized_videos(
+async fn get_uncategorized_videos_view(
     db_connection: web::Data<Pool>,
     data: web::Data<config::Config>,
 ) -> Result<impl Responder, actix_web::Error> {
+    let uncategorized_videos = get_uncategorized_video(db_connection, data)
+        .await
+        .map_err(ErrorInternalServerError)?;
+    let path: PathBuf = [consts::VIEW_PATH, "uncategorized.html"].iter().collect();
+    let mut file = std::fs::read_to_string(path)?;
+    let mut params = Vec::<CreateVideoHtmlListParameter>::new();
+    for video in uncategorized_videos {
+        params.push(CreateVideoHtmlListParameter {
+            item_link: format!("uncategorized_video/{}", html_escape::encode_text(&video)),
+            title: video,
+            thumbnail_id: String::from("-1"),
+        })
+    }
+    let video_list = create_video_html_list(params);
+
+    file = file.replace("{videoListEntries}", &video_list.concat());
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(file))
+}
+
+async fn get_uncategorized_video(
+    db_connection: web::Data<Pool>,
+    data: web::Data<config::Config>,
+) -> Result<Vec<String>, Box<MultiThreadableError>> {
     let all_videos: Vec<String> =
-        get_all_videos_in_video_path(data).map_err(ErrorInternalServerError)?;
+        get_all_videos_in_video_path(data)?;
 
     let categorized_videos: HashSet<String> = get_all_videos(db_connection)
-        .await
-        .map_err(ErrorInternalServerError)?
+        .await?
         .into_iter()
         .map(|v| String::from(v.get_file_name()))
         .collect();
@@ -203,11 +227,12 @@ async fn get_uncategorized_videos(
             uncategorized_videos.push(video);
         }
     }
-    Ok(HttpResponse::Ok().body(json!(uncategorized_videos).to_string()))
+    Ok(uncategorized_videos)
 }
+
 fn get_all_videos_in_video_path(
     data: web::Data<config::Config>,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<Vec<String>, Box<MultiThreadableError>> {
     let read_dir = std::fs::read_dir(&data.video_path)?;
     let videos = read_dir
         .filter_map(|entry| {
