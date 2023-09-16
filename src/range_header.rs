@@ -1,6 +1,7 @@
 use std::cmp;
 
 use actix_web::http::header::HeaderValue;
+use crate::util::MultiThreadableError;
 
 pub struct RangeHeader {
     pub unit: String,
@@ -9,7 +10,7 @@ pub struct RangeHeader {
 }
 
 impl RangeHeader {
-    pub fn parse(range: &HeaderValue, size: u64) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn parse(range: &HeaderValue, size: u64) -> Result<Self, Box<MultiThreadableError>> {
         let range: Vec<&str> = range.to_str()?.split(&['=', '-'][..]).collect();
         if range.len() < 2 {
             Err(Box::new(std::io::Error::new(

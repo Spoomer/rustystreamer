@@ -10,7 +10,7 @@ use std::io::stdin;
 use std::io::stdout;
 use std::io::Write;
 
-use rustystreamer::config;
+use rustystreamer::{config, video_controller};
 
 use rustystreamer::controller;
 
@@ -36,14 +36,20 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(config.clone()))
             .app_data(web::Data::new(pool.clone()))
             .service(controller::index_page)
-            .service(controller::video_page)
+            .service(video_controller::video_page)
             .service(controller::collection_page)
-            .service(controller::load_video)
+            .service(video_controller::load_video)
             .service(actix_files::Files::new("/assets", "./assets"))
-            .service(controller::update_timestamp)
-            .service(controller::timestamp)
+            .service(video_controller::update_timestamp)
+            .service(video_controller::timestamp)
             .service(controller::get_thumbnail)
-            .service(controller::get_uncategorized_videos_view)
+            .service(controller::get_uncategorized_videos_page)
+            .service(controller::get_collections)
+            .service(controller::get_uncategorized_video_page)
+            .service(video_controller::load_video_by_file_name)
+            .service(controller::post_collection)
+            .service(controller::post_uncategorized_video)
+
     })
     .bind((ip, port))?
     .run()

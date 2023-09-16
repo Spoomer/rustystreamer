@@ -20,7 +20,7 @@ pub(crate) async fn get_video_entry_by_id(
         let result = stmt.query_row([id], VideoEntry::from_rusqlite_row)?;
         Ok(result)
     })
-        .await
+    .await
 }
 
 pub(crate) async fn get_video_entry_by_collection_id(
@@ -35,7 +35,7 @@ pub(crate) async fn get_video_entry_by_collection_id(
             .collect();
         Ok(result?)
     })
-        .await?;
+    .await?;
     Ok(videos)
 }
 
@@ -48,7 +48,7 @@ pub(crate) async fn get_all_videos(
             stmt.query_map([], VideoEntry::from_rusqlite_row)?.collect();
         Ok(result?)
     })
-        .await
+    .await
 }
 
 /// Gets a video entry, if there is only one video in the collection
@@ -74,6 +74,19 @@ pub(crate) async fn get_video_if_single_in_collection(
     Ok(single)
 }
 
+pub(crate) async fn get_all_collections(
+    db_connection: web::Data<Pool>,
+) -> Result<Vec<VideoCollection>, Box<MultiThreadableError>> {
+    execute_get_vec(&db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Collections;")?;
+        let result: Result<Vec<VideoCollection>, rusqlite::Error> = stmt
+            .query_map([], VideoCollection::from_rusqlite_row)?
+            .collect();
+        Ok(result?)
+    })
+    .await
+}
+
 pub(crate) async fn get_root_collections(
     db_connection: &web::Data<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>,
 ) -> Result<Vec<VideoCollection>, Box<MultiThreadableError>> {
@@ -85,7 +98,7 @@ pub(crate) async fn get_root_collections(
             .collect();
         Ok(result?)
     })
-        .await?;
+    .await?;
     Ok(collections)
 }
 
@@ -101,7 +114,7 @@ pub(crate) async fn get_child_collections(
             .collect();
         Ok(result?)
     })
-        .await
+    .await
 }
 
 pub(crate) async fn _get_collection_by_id(
@@ -113,7 +126,19 @@ pub(crate) async fn _get_collection_by_id(
         let result = stmt.query_row([collection_id], VideoCollection::from_rusqlite_row)?;
         Ok(result)
     })
-        .await
+    .await
+}
+
+pub(crate) async fn get_collection_by_title(
+    db_connection: &web::Data<Pool>,
+    title: String,
+) -> Result<VideoCollection, Box<MultiThreadableError>> {
+    execute_single(db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Collections WHERE title= ?1;")?;
+        let result = stmt.query_row([title], VideoCollection::from_rusqlite_row)?;
+        Ok(result)
+    })
+    .await
 }
 
 pub(crate) async fn get_timestamp_store_by_id(
@@ -127,7 +152,7 @@ pub(crate) async fn get_timestamp_store_by_id(
             .optional()?;
         Ok(result)
     })
-        .await
+    .await
 }
 
 pub(crate) async fn update_timestamp(
@@ -142,7 +167,7 @@ pub(crate) async fn update_timestamp(
             [vts.get_timestamp(), vts.get_video_id().0 as u64],
         )
     })
-        .await??;
+    .await??;
     let connection = get_connection(db_connection).await?;
     if changed_rows == 0 {
         let _ = web::block(move || {
@@ -154,7 +179,43 @@ pub(crate) async fn update_timestamp(
                 ],
             )
         })
-            .await??;
+        .await??;
     }
+    Ok(())
+}
+pub(crate) async fn insert_collection(
+    db_connection: &web::Data<Pool>,
+    collection: VideoCollection,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        match collection.get_parent_id() {
+            Some(id) => {
+                connection.execute(
+                    "INSERT INTO Collections(title, parent_id) VALUES(?1, ?2);",
+                    [collection.get_title(), &id.0.to_string()],
+                )},
+            None => {
+                connection.execute(
+                    "INSERT INTO Collections(title) VALUES(?1);",
+                    [collection.get_title()],
+                )},
+        }
+    })
+    .await??;
+    Ok(())
+}
+pub(crate) async fn insert_video_entry(
+    db_connection: &web::Data<Pool>,
+    video_entry: VideoEntry,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "INSERT INTO Videos(title, file_name, file_type, collection_id) VALUES(?1, ?2, ?3, ?4);",
+            [video_entry.get_title(), video_entry.get_file_name(),video_entry.get_file_type(), &video_entry.get_collection_id().0.to_string()],
+        )
+    })
+    .await??;
     Ok(())
 }

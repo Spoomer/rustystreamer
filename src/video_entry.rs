@@ -33,4 +33,23 @@ impl VideoEntry {
             collection_id: row.get(4)?,
         })
     }
+
+    pub(crate) fn get_collection_id(&self) -> CollectionId {
+        self.collection_id
+    }
+    pub(crate) fn new(
+        video_id: VideoId,
+        title: String,
+        file_name: String,
+        file_type: String,
+        collection_id: CollectionId,
+    ) -> Self {
+        VideoEntry {
+            video_id,
+            title,
+            file_name,
+            file_type,
+            collection_id,
+        }
+    }
 }

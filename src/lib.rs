@@ -12,3 +12,5 @@ pub mod video_entry;
 pub mod video_id;
 pub mod video_time_stamps;
 pub mod thumbnails;
+pub mod uncategorized;
+pub mod video_controller;

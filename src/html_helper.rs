@@ -41,7 +41,7 @@ pub(crate) fn create_video_html_list(create_video_html_list_param: Vec<CreateVid
     for param in create_video_html_list_param {
         video_list.push(
             consts::VIDEO_LIST_HTML
-                .replace("{itemLink}", &format!("/video/{}", param.item_link))
+                .replace("{itemLink}", &param.item_link)
                 .replace("{title}", &param.title)
                 .replace(
                     "{thumbnailLink}",
