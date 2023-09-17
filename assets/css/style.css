@@ -12,6 +12,12 @@ body {
     max-height: 100vh;
 }
 
+.video-container-sm {
+    display: flex;
+    max-height: 50vh;
+    max-width: 50vh;
+}
+
 #Videoplayer {
     overflow: auto;
 }

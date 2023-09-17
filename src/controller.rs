@@ -37,6 +37,11 @@ async fn index_page(db_connection: web::Data<Pool>) -> Result<impl Responder, ac
         .body(file))
 }
 
+#[get("/favicon.ico")]
+async fn favicon() -> actix_web::Result<actix_files::NamedFile> {
+    Ok(actix_files::NamedFile::open("assets/favicon.ico")?)
+}
+
 #[get("collections")]
 async fn get_collections(
     db_connection: web::Data<Pool>,
@@ -45,13 +50,46 @@ async fn get_collections(
         .await
         .map_err(ErrorInternalServerError)?;
     let map = collections
-        .iter()
-        .map(|c| (c.get_id(), c.get_title()))
+        .into_iter()
+        .map(|c| (c.get_id(), c))
         .collect::<HashMap<_, _>>();
-    let json = serde_json::to_string(&map)?;
+    let mut result: HashMap<CollectionId, String> = HashMap::new();
+    for key_value in map.iter() {
+        let mut title = String::from(key_value.1.get_title());
+        if !key_value.1.is_root() {
+            title = add_parent_title(title, key_value.1.get_parent_id().unwrap(), &map);
+        }
+        result.insert(*key_value.0, title);
+    }
+    let json = serde_json::to_string(&result)?;
     Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
         .body(json))
+}
+
+fn add_parent_title(
+    title: String,
+    parent_key: CollectionId,
+    map: &HashMap<CollectionId, VideoCollection>,
+) -> String {
+    let result: String;
+    match map.get(&parent_key) {
+        Some(parent_coll) => {
+            if !parent_coll.is_root() {
+                result = add_parent_title(
+                    format!("{} -> {}", parent_coll.get_title(), title),
+                    parent_coll.get_parent_id().unwrap(),
+                    map,
+                );
+            } else {
+                result = format!("{} -> {}", parent_coll.get_title(), title);
+            }
+        }
+        None => {
+            return title;
+        }
+    };
+    result
 }
 
 #[get("/collection/{id}")]
@@ -112,7 +150,6 @@ async fn get_uncategorized_videos_page(
     let mut file = std::fs::read_to_string(path)?;
     let mut params = Vec::<CreateVideoHtmlListParameter>::new();
     for video in uncategorized_videos {
-        let video = video.replace('.', "%2E");
         params.push(CreateVideoHtmlListParameter {
             item_link: format!("uncategorized/{}", html_escape::encode_text(&video)),
             title: video,
@@ -135,11 +172,14 @@ async fn get_uncategorized_video_page(
         .iter()
         .collect();
     let mut file = std::fs::read_to_string(path)?;
-    file = file.replace("{title}", &file_name).replace("{file_name}", &file_name);
+    file = file
+        .replace("{title}", &file_name)
+        .replace("{file_name}", &file_name);
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
         .body(file))
 }
+
 #[derive(serde::Deserialize)]
 struct PostVideoEntry {
     video_id: VideoId,
@@ -179,13 +219,20 @@ async fn post_uncategorized_video(
             categorized_video.title.clone(),
             categorized_video.file_name.clone(),
             String::from(categorized_video.file_name.split('.').nth(1).unwrap()),
-            CollectionId(categorized_video.collection_id.parse().map_err(ErrorInternalServerError)?),
+            CollectionId(
+                categorized_video
+                    .collection_id
+                    .parse()
+                    .map_err(ErrorInternalServerError)?,
+            ),
         );
     }
     insert_video_entry(&db_connection, new_entry)
         .await
         .map_err(ErrorInternalServerError)?;
-    Ok(HttpResponse::Ok())
+    Ok(HttpResponse::SeeOther()
+        .insert_header((actix_web::http::header::LOCATION, "/uncategorized"))
+        .finish())
 }
 
 #[post("/collection")]

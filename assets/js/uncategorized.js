@@ -9,7 +9,7 @@ function postCollection() {
             {
                 collection_id: 0,
                 title : collectionTitle,
-                parent_id: parentCollection === "None" ? null  : parentCollection
+                parent_id: parentCollection === "None" ? null  : parseInt(parentCollection)
             })
     }).then(x => x.ok);
     populateCollectionSelect()

@@ -35,6 +35,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(config.clone()))
             .app_data(web::Data::new(pool.clone()))
+            .service(controller::favicon)
             .service(controller::index_page)
             .service(video_controller::video_page)
             .service(controller::collection_page)
@@ -49,7 +50,6 @@ async fn main() -> std::io::Result<()> {
             .service(video_controller::load_video_by_file_name)
             .service(controller::post_collection)
             .service(controller::post_uncategorized_video)
-
     })
     .bind((ip, port))?
     .run()

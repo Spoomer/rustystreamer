@@ -1,3 +1,5 @@
+use std::{num::ParseIntError, str::FromStr};
+
 use rusqlite::{types::FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
@@ -20,4 +22,11 @@ impl From<u32> for CollectionId {
     fn from(value: u32) -> Self {
         CollectionId(value)
     }
+}
+impl FromStr for CollectionId {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(CollectionId(s.parse::<u32>()?))
+    }
+
+    type Err = ParseIntError;
 }
