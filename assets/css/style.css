@@ -2,7 +2,9 @@ body {
     background-color: black;
     color: beige;
 }
-
+.edit-link { 
+    min-width:1em;
+}
 .video-list-item {
     margin: 1rem;
 }

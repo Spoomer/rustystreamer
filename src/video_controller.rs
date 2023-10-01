@@ -11,6 +11,7 @@ use actix_web::{
     http::header::{self, ContentType},
     post, web, HttpRequest, HttpResponse, Responder,
 };
+use std::collections::HashMap;
 use std::{
     io::{BufReader, Read, Seek, SeekFrom},
     path::PathBuf,
@@ -28,6 +29,48 @@ async fn video_page(
             file = file
                 .replace("{title}", video_details.get_title())
                 .replace("{videoId}", &id.to_string());
+            return Ok(HttpResponse::Ok()
+                .content_type(ContentType::html())
+                .body(file));
+        }
+        Err(_) => Ok(HttpResponse::NotFound().finish()),
+    }
+}
+
+#[get("/video-entry/{id}")]
+async fn get_video_entry(
+    id: web::Path<u32>,
+    db_connection: web::Data<Pool>,
+) -> Result<impl Responder, actix_web::Error> {
+    match get_video_entry_by_id(db_connection, VideoId(*id)).await {
+        Ok(video_entry) => {
+            return Ok(HttpResponse::Ok()
+                .content_type(ContentType::json())
+                .body(serde_json::to_string(&video_entry)?));
+        }
+        Err(_) => Ok(HttpResponse::NotFound().finish()),
+    }
+}
+
+#[get("/video-entry/edit/{id}")]
+async fn get_edit_video_entry(
+    id: web::Path<u32>,
+    query: web::Query<HashMap<String, String>>,
+    db_connection: web::Data<Pool>,
+) -> Result<impl Responder, actix_web::Error> {
+    let path: PathBuf = [consts::VIEW_PATH, "uncategorized-video.html"]
+        .iter()
+        .collect();
+    match get_video_entry_by_id(db_connection, VideoId(*id)).await {
+        Ok(video_entry) => {
+            let mut file = std::fs::read_to_string(path)?;
+            file = file
+                .replace("{title}", video_entry.get_title())
+                .replace("{file_name}", video_entry.get_file_name())
+                .replace(
+                    "{return_url}",
+                    query.get("return_url").map(String::as_str).unwrap_or("/"),
+                );
             return Ok(HttpResponse::Ok()
                 .content_type(ContentType::html())
                 .body(file));

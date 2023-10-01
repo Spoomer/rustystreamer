@@ -1,5 +1,6 @@
 use actix_web::web;
 
+use crate::queries::get_video_entry_by_collection_id;
 use crate::{
     collection_id::CollectionId,
     consts,
@@ -8,24 +9,23 @@ use crate::{
     util::MultiThreadableError,
     video_collection::VideoCollection,
 };
-use crate::queries::get_video_entry_by_collection_id;
 
 pub(crate) async fn get_video_html_list(
     collection_id: CollectionId,
     db_connection: &web::Data<Pool>,
 ) -> Result<Vec<String>, Box<MultiThreadableError>> {
     let video_entries = get_video_entry_by_collection_id(db_connection, collection_id).await?;
-    let videos: Vec<CreateVideoHtmlListParameter> =
-        video_entries.iter()
-            .map(|entry| {
-                let string_id = entry.get_id().0.to_string();
-                CreateVideoHtmlListParameter {
-                    item_link: format!("/video/{}", string_id),
-                    title: entry.get_title().to_string(),
-                    thumbnail_id: string_id,
-                }
-            })
-            .collect();
+    let videos: Vec<CreateVideoHtmlListParameter> = video_entries
+        .iter()
+        .map(|entry| {
+            let string_id = entry.get_id().0.to_string();
+            CreateVideoHtmlListParameter {
+                item_link: format!("/video/{}", string_id),
+                title: entry.get_title().to_string(),
+                thumbnail_id: string_id,
+            }
+        })
+        .collect();
     let video_list = create_video_html_list(videos);
     Ok(video_list)
 }
@@ -36,7 +36,9 @@ pub(crate) struct CreateVideoHtmlListParameter {
     pub thumbnail_id: String,
 }
 
-pub(crate) fn create_video_html_list(create_video_html_list_param: Vec<CreateVideoHtmlListParameter>) -> Vec<String> {
+pub(crate) fn create_video_html_list(
+    create_video_html_list_param: Vec<CreateVideoHtmlListParameter>,
+) -> Vec<String> {
     let mut video_list = Vec::<String>::new();
     for param in create_video_html_list_param {
         video_list.push(
@@ -76,6 +78,10 @@ pub(crate) async fn get_collection_html_list(
                     .replace(
                         "{thumbnailLink}",
                         &format!("/thumbnail/video/{}", &video.get_id().0),
+                    )
+                    .replace(
+                        "{editLink}",
+                        &format!("/video-entry/edit/{}", &video.get_id().0),
                     ),
             );
         } else {

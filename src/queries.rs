@@ -27,7 +27,7 @@ pub(crate) async fn get_video_entry_by_collection_id(
     db_connection: &web::Data<Pool>,
     collection_id: CollectionId,
 ) -> Result<Vec<VideoEntry>, Box<MultiThreadableError>> {
-    let videos: Vec<VideoEntry> = execute_get_vec(&db_connection, move |conn| {
+    let videos: Vec<VideoEntry> = execute_get_vec(db_connection, move |conn| {
         let mut statement =
             conn.prepare("SELECT * FROM Videos WHERE collection_id = ?1 ORDER BY title;")?;
         let result: Result<Vec<VideoEntry>, rusqlite::Error> = statement
@@ -188,19 +188,15 @@ pub(crate) async fn insert_collection(
     collection: VideoCollection,
 ) -> Result<(), Box<MultiThreadableError>> {
     let connection = get_connection(db_connection).await?;
-    let _ = web::block(move || {
-        match collection.get_parent_id() {
-            Some(id) => {
-                connection.execute(
-                    "INSERT INTO Collections(title, parent_id) VALUES(?1, ?2);",
-                    [collection.get_title(), &id.0.to_string()],
-                )},
-            None => {
-                connection.execute(
-                    "INSERT INTO Collections(title) VALUES(?1);",
-                    [collection.get_title()],
-                )},
-        }
+    let _ = web::block(move || match collection.get_parent_id() {
+        Some(id) => connection.execute(
+            "INSERT INTO Collections(title, parent_id) VALUES(?1, ?2);",
+            [collection.get_title(), &id.0.to_string()],
+        ),
+        None => connection.execute(
+            "INSERT INTO Collections(title) VALUES(?1);",
+            [collection.get_title()],
+        ),
     })
     .await??;
     Ok(())
@@ -214,6 +210,22 @@ pub(crate) async fn insert_video_entry(
         connection.execute(
             "INSERT INTO Videos(title, file_name, file_type, collection_id) VALUES(?1, ?2, ?3, ?4);",
             [video_entry.get_title(), video_entry.get_file_name(),video_entry.get_file_type(), &video_entry.get_collection_id().0.to_string()],
+        )
+    })
+    .await??;
+    Ok(())
+}
+
+pub(crate) async fn update_video_entry(
+    db_connection: &web::Data<Pool>,
+    video_entry: VideoEntry,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "UPDATE Videos SET title=?1, file_name=?2, file_type=?3, collection_id=?4 WHERE video_id = ?5;",
+            [video_entry.get_title(), video_entry.get_file_name(), video_entry.get_file_type(),
+                &video_entry.get_collection_id().0.to_string(), &video_entry.get_id().0.to_string()],
         )
     })
     .await??;

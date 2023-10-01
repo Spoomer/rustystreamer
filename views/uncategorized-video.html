@@ -13,9 +13,9 @@
         <source src="/video-resource/uncategorized/{file_name}"/>
     </video>
 </div>
-<form class="flex flex-col mx-auto gap-2.5" action="/uncategorized" method="post" target="_top">
+<form class="flex flex-col mx-auto gap-2.5" action="/categorize?return_url={return_url}" method="post" target="_top">
     <input hidden type="number" id="video-id" name="video_id" value="0"/>
-    <input hidden type="text" id="file-name" name="file_name" value="{file_name}"/>
+    <input readonly type="text" id="file-name" name="file_name" value="{file_name}"/>
     <div class="p-1 flex"><label class="m-3" for="title">Titel</label><input class="bg-slate-500 p-2 grow rounded" type="text" id="title" name="title"/></div>
     <div class="p-1 flex"><label class="m-3" for="collection">Sammlung</label><select class="bg-slate-500 p-2 mr-3 grow rounded" id="collection" name="collection_id">
         <option value="" selected>keine</option>
@@ -29,7 +29,7 @@
     <div class="p-1 flex"><label class="m-3" for="parent-collection">Eltern-Sammlung</label><select class="bg-slate-500 grow rounded" id="parent-collection" name="parent-collection">
         <option value="None" selected>keine</option>
     </select></div>
-    <div class="p-1 flex"><button class="bg-slate-500 rounded-lg -p-2 grow" onclick="postCollection()">erstellen</button></div>
+    <div class="p-1 flex"><button class="bg-slate-500 rounded-lg -p-2 grow" onclick="postCollectionAsync()">erstellen</button></div>
 </dialog>
 </body>
 </html>

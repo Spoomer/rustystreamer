@@ -49,7 +49,9 @@ async fn main() -> std::io::Result<()> {
             .service(controller::get_uncategorized_video_page)
             .service(video_controller::load_video_by_file_name)
             .service(controller::post_collection)
-            .service(controller::post_uncategorized_video)
+            .service(controller::post_categorized_video)
+            .service(video_controller::get_edit_video_entry)
+            .service(video_controller::get_video_entry)
     })
     .bind((ip, port))?
     .run()

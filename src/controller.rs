@@ -7,7 +7,7 @@ use crate::html_helper::{
 };
 use crate::queries::{
     get_all_collections, get_child_collections, get_collection_by_title, insert_collection,
-    insert_video_entry,
+    insert_video_entry, update_video_entry,
 };
 use crate::thumbnails::get_thumbnail_path;
 use crate::uncategorized::get_uncategorized_videos;
@@ -188,9 +188,10 @@ struct PostVideoEntry {
     collection_id: String,
 }
 
-#[post("/uncategorized")]
-async fn post_uncategorized_video(
+#[post("/categorize")]
+async fn post_categorized_video(
     categorized_video: web::Form<PostVideoEntry>,
+    query: web::Query<HashMap<String, String>>,
     db_connection: web::Data<Pool>,
 ) -> Result<impl Responder, actix_web::Error> {
     let new_entry: VideoEntry;
@@ -227,12 +228,22 @@ async fn post_uncategorized_video(
             ),
         );
     }
-    insert_video_entry(&db_connection, new_entry)
-        .await
-        .map_err(ErrorInternalServerError)?;
-    Ok(HttpResponse::SeeOther()
-        .insert_header((actix_web::http::header::LOCATION, "/uncategorized"))
-        .finish())
+    let return_url = query.get("return_url").map(String::as_str).unwrap_or("/");
+    if new_entry.get_id().0 == 0 {
+        insert_video_entry(&db_connection, new_entry)
+            .await
+            .map_err(ErrorInternalServerError)?;
+        Ok(HttpResponse::SeeOther()
+            .insert_header((actix_web::http::header::LOCATION, return_url))
+            .finish())
+    } else {
+        update_video_entry(&db_connection, new_entry)
+            .await
+            .map_err(ErrorInternalServerError)?;
+        Ok(HttpResponse::SeeOther()
+            .insert_header((actix_web::http::header::LOCATION, return_url))
+            .finish())
+    }
 }
 
 #[post("/collection")]
