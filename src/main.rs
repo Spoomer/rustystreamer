@@ -52,6 +52,10 @@ async fn main() -> std::io::Result<()> {
             .service(controller::post_categorized_video)
             .service(video_controller::get_edit_video_entry)
             .service(video_controller::get_video_entry)
+            .service(controller::get_collection_entry_edit_page)
+            .service(controller::get_collection_entry)
+            .service(controller::post_collection_edit_form)
+            .service(controller::delete_collection_entry)
     })
     .bind((ip, port))?
     .run()

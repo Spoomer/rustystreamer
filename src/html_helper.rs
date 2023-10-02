@@ -44,6 +44,7 @@ pub(crate) fn create_video_html_list(
         video_list.push(
             consts::VIDEO_LIST_HTML
                 .replace("{itemLink}", &param.item_link)
+                .replace("{editLink}", &param.item_link)
                 .replace("{title}", &param.title)
                 .replace(
                     "{thumbnailLink}",
@@ -92,6 +93,10 @@ pub(crate) async fn get_collection_html_list(
                     .replace(
                         "{thumbnailLink}",
                         &format!("/thumbnail/collection/{}", &string_id),
+                    )
+                    .replace(
+                        "{editLink}",
+                        &format!("/collection-entry/edit/{}", &string_id),
                     ),
             );
         }

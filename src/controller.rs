@@ -6,8 +6,9 @@ use crate::html_helper::{
     get_video_html_list, CreateVideoHtmlListParameter,
 };
 use crate::queries::{
-    get_all_collections, get_child_collections, get_collection_by_title, insert_collection,
-    insert_video_entry, update_video_entry,
+    delete_collection, get_all_collections, get_child_collections, get_collection_by_id,
+    get_collection_by_title, insert_collection, insert_video_entry, update_collection,
+    update_video_entry,
 };
 use crate::thumbnails::get_thumbnail_path;
 use crate::uncategorized::get_uncategorized_videos;
@@ -16,7 +17,7 @@ use crate::video_entry::VideoEntry;
 use crate::video_id::VideoId;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::http::header::{ContentDisposition, DispositionType};
-use actix_web::post;
+use actix_web::{delete, post};
 use actix_web::{get, http::header::ContentType, web, HttpResponse, Responder};
 use html_escape;
 use std::collections::HashMap;
@@ -118,6 +119,33 @@ async fn collection_page(
         .body(file))
 }
 
+#[get("/collection-entry/edit/{id}")]
+async fn get_collection_entry_edit_page(
+    _id: web::Path<u32>,
+    query: web::Query<HashMap<String, String>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let path: PathBuf = [consts::VIEW_PATH, "edit-collection.html"].iter().collect();
+    let mut file = std::fs::read_to_string(path)?;
+    let return_url = query.get("return_url").map(String::as_str).unwrap_or("/");
+    file = file.replace("{return_url}", return_url);
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(file))
+}
+
+#[get("/collection-entry/{id}")]
+async fn get_collection_entry(
+    id: web::Path<u32>,
+    db_connection: web::Data<Pool>,
+) -> Result<impl Responder, actix_web::Error> {
+    let collection = get_collection_by_id(&db_connection, CollectionId(*id))
+        .await
+        .map_err(ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .body(serde_json::to_string(&collection)?))
+}
+
 #[get("/thumbnail/{category}/{id}")]
 async fn get_thumbnail(
     params: web::Path<(String, String)>,
@@ -174,6 +202,7 @@ async fn get_uncategorized_video_page(
     let mut file = std::fs::read_to_string(path)?;
     file = file
         .replace("{title}", &file_name)
+        .replace("{return_url}", "/uncategorized")
         .replace("{file_name}", &file_name);
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
@@ -252,6 +281,32 @@ async fn post_collection(
     db_connection: web::Data<Pool>,
 ) -> Result<impl Responder, actix_web::Error> {
     insert_collection(&db_connection, collection.0)
+        .await
+        .map_err(ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok())
+}
+
+#[post("/collection-form")]
+async fn post_collection_edit_form(
+    collection: web::Form<VideoCollection>,
+    query: web::Query<HashMap<String, String>>,
+    db_connection: web::Data<Pool>,
+) -> Result<impl Responder, actix_web::Error> {
+    update_collection(&db_connection, collection.0)
+        .await
+        .map_err(ErrorInternalServerError)?;
+    let return_url = query.get("return_url").map(String::as_str).unwrap_or("/");
+    Ok(HttpResponse::SeeOther()
+        .insert_header((actix_web::http::header::LOCATION, return_url))
+        .finish())
+}
+
+#[delete("/collection-entry/{id}")]
+async fn delete_collection_entry(
+    id: web::Path<u32>,
+    db_connection: web::Data<Pool>,
+) -> Result<impl Responder, actix_web::Error> {
+    delete_collection(&db_connection, CollectionId(*id))
         .await
         .map_err(ErrorInternalServerError)?;
     Ok(HttpResponse::Ok())

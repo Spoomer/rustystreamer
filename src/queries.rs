@@ -1,4 +1,5 @@
 use actix_web::web;
+use async_recursion::async_recursion;
 
 use crate::{
     collection_id::CollectionId,
@@ -117,7 +118,7 @@ pub(crate) async fn get_child_collections(
     .await
 }
 
-pub(crate) async fn _get_collection_by_id(
+pub(crate) async fn get_collection_by_id(
     db_connection: &web::Data<Pool>,
     collection_id: CollectionId,
 ) -> Result<VideoCollection, Box<MultiThreadableError>> {
@@ -201,6 +202,70 @@ pub(crate) async fn insert_collection(
     .await??;
     Ok(())
 }
+
+pub(crate) async fn update_collection(
+    db_connection: &web::Data<Pool>,
+    collection: VideoCollection,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || match collection.get_parent_id() {
+        Some(id) => connection.execute(
+            "UPDATE Collections SET title = ?1, parent_id = ?2 WHERE collection_id = ?3;",
+            [
+                collection.get_title(),
+                &id.0.to_string(),
+                &collection.get_id().0.to_string(),
+            ],
+        ),
+        None => connection.execute(
+            "UPDATE Collections SET title = ?1, parent_id = NULL WHERE collection_id = ?2;",
+            [collection.get_title(), &collection.get_id().0.to_string()],
+        ),
+    })
+    .await??;
+    Ok(())
+}
+
+#[async_recursion]
+pub(crate) async fn delete_collection(
+    db_connection: &web::Data<Pool>,
+    collection_id: CollectionId,
+) -> Result<(), Box<MultiThreadableError>> {
+    // recursive delete child collections
+    let colls = execute_get_vec(db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Collections WHERE parent_id = ?1;")?;
+        let result: Result<Vec<VideoCollection>, rusqlite::Error> = stmt
+            .query_map([collection_id], VideoCollection::from_rusqlite_row)?
+            .collect();
+        Ok(result?)
+    })
+    .await?;
+    for coll in colls {
+        delete_collection(db_connection, coll.get_id()).await?;
+    }
+
+    //delete videos in collection
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "DELETE FROM Videos WHERE collection_id = ?1;",
+            [collection_id.0.to_string()],
+        )
+    })
+    .await??;
+
+    //delete collection
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "DELETE FROM Collections WHERE collection_id = ?1;",
+            [&collection_id.0.to_string()],
+        )
+    })
+    .await??;
+    Ok(())
+}
+
 pub(crate) async fn insert_video_entry(
     db_connection: &web::Data<Pool>,
     video_entry: VideoEntry,
