@@ -1,1 +1,1 @@
-pub(crate) type MultiThreadableError = dyn std::error::Error + Send + Sync;
+pub type MultiThreadableError = dyn std::error::Error + Send + Sync;

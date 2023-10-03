@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <title>{title}</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/tailwind.css">
+</head>
+
+<body class="m-5 flex flex-col">
+  <h1 class="text-3xl font-black mb-3 mx-auto" id="uncategorized-title">{title}</h1>
+  <div class="video-container-sm mx-auto">
+    <video id="Videoplayer" controls data-file-name="{file_name}" preload="metadata">
+      <source src="/video-resource/uncategorized/{file_name}" />
+    </video>
+  </div>
+  <form class="flex flex-col mx-auto gap-2.5" action="/categorize?return_url={return_url}" method="post" target="_top">
+    <input hidden type="number" id="video-id" name="video_id" value="0" />
+    <input readonly class="bg-slate-500 p-2 grow rounded" type="text" id="file-name" name="file_name"
+      value="{file_name}" />
+    <div class="p-1 flex"><label class="m-3" for="title">Titel</label><input class="bg-slate-500 p-2 grow rounded"
+        type="text" id="title" name="title" /></div>
+    <div class="p-1 flex"><label class="m-3" for="collection">Sammlung</label><select
+        class="bg-slate-500 p-2 mr-3 grow rounded" id="collection" name="collection_id">
+        <option value="" selected>keine</option>
+      </select>
+      <button class="bg-slate-500 rounded-lg p-2" type="button" id="show-collection-dialog">Neue Sammlung
+        erzeugen</button>
+    </div>
+    <div class="p-1 flex"><button class="bg-slate-500 rounded-lg p-2 grow" type="submit"
+        onclick="window.location.pathname= '/';">Video kategorisieren</button></div>
+  </form>
+  <dialog id="collection-dialog" class="bg-slate-700 rounded p-5 gap-2.5 text-slate-100">
+    <h3 class="text-xl font-black mx-auto mb-3">Sammlung anlegen</h3>
+    <div class="p-1 flex"><label class="m-3" for="collection-title">Name</label><input class="bg-slate-500 grow rounded"
+        id="collection-title" name="collection-title" type="text"></div>
+    <div class="p-1 flex"><label class="m-3" for="parent-collection">Eltern-Sammlung</label><select
+        class="bg-slate-500 grow rounded" id="parent-collection" name="parent-collection">
+        <option value="None" selected>keine</option>
+      </select></div>
+    <div class="p-1 flex"><button class="bg-slate-500 rounded-lg p-2 grow" id="postCollectionButton">erstellen</button>
+    </div>
+  </dialog>
+  <script type="module" src="/assets/js/uncategorized.js"></script>
+</body>
+
+</html>

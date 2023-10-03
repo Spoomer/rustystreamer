@@ -1,22 +1,21 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 
 <head>
   <meta charset="UTF-8">
+  <title>Nicht-kategorisierte Videos</title>
   <link rel="stylesheet" href="/assets/css/style.css">
   <link rel="stylesheet" href="/assets/css/tailwind.css">
-  <title>Video-Übersicht</title>
 </head>
 
 <body>
   <div class="flex justify-between mb-4">
-    <h1 class="text-3xl font-black">Video-Übersicht</h1>
-    <a href="/uncategorized" class="p-3 bg-slate-500 text-slate-100 text-sm rounded-lg">Nicht-kategorisierte Videos</a>
+    <h1 class="text-3xl font-black">Nicht-kategorisierte Videos</h1>
+    <a class="bg-slate-500 p-3 rounded text-sm" id="back" href="/">Zurück</a>
   </div>
   <div class="flex flex-wrap">
     {videoListEntries}
   </div>
-  <script src="/assets/js/list.js"></script>
 </body>
 
 </html>

@@ -2,7 +2,9 @@ body {
     background-color: black;
     color: beige;
 }
-
+.edit-link { 
+    min-width:1em;
+}
 .video-list-item {
     margin: 1rem;
 }
@@ -10,6 +12,12 @@ body {
 .video-container {
     display: flex;
     max-height: 100vh;
+}
+
+.video-container-sm {
+    display: flex;
+    max-height: 50vh;
+    max-width: 50vh;
 }
 
 #Videoplayer {

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Sammlung bearbeiten</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/tailwind.css">
+</head>
+
+<body class="m-5 flex flex-col mx-auto">
+  <div class="flex justify-center mb-4">
+    <h3 class="text-xl font-black mb-3 mr-2">Sammlung bearbeiten</h3>
+    <button class="bg-slate-500 rounded-lg px-3" id="deleteButton">x</button>
+  </div>
+  <form id="edit-collection-form" action="/collection-form?return_url={return_url}" method="post"
+    class="flex flex-col mx-auto gap-2.5">
+    <div class="p-1 flex"><label class="m-3" for="collection-id">Sammlungs-ID</label><input readonly
+        class="bg-slate-500 grow rounded" id="collection-id" name="collection_id" type="text"></div>
+    <div class="p-1 flex"><label class="m-3" for="collection-title">Name</label><input class="bg-slate-500 grow rounded"
+        id="collection-title" name="title" type="text"></div>
+    <div class="p-1 flex"><label class="m-3" for="parent-collection">Eltern-Sammlung</label><select
+        class="bg-slate-500 grow rounded" id="parent-collection" name="parent_id">
+        <option value="" selected>keine</option>
+      </select></div>
+    <div class="p-1 flex"><button class="bg-slate-500 rounded-lg p-2 grow">speichern</button></div>
+  </form>
+  <script type="module" src="/assets/js/edit-collection.js">
+  </script>
+</body>
+
+</html>

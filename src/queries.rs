@@ -1,4 +1,5 @@
 use actix_web::web;
+use async_recursion::async_recursion;
 
 use crate::{
     collection_id::CollectionId,
@@ -10,6 +11,7 @@ use crate::{
     video_time_stamps::VideoTimeStamp,
 };
 use rusqlite::OptionalExtension;
+
 pub(crate) async fn get_video_entry_by_id(
     db_connection: web::Data<Pool>,
     id: VideoId,
@@ -21,6 +23,35 @@ pub(crate) async fn get_video_entry_by_id(
     })
     .await
 }
+
+pub(crate) async fn get_video_entry_by_collection_id(
+    db_connection: &web::Data<Pool>,
+    collection_id: CollectionId,
+) -> Result<Vec<VideoEntry>, Box<MultiThreadableError>> {
+    let videos: Vec<VideoEntry> = execute_get_vec(db_connection, move |conn| {
+        let mut statement =
+            conn.prepare("SELECT * FROM Videos WHERE collection_id = ?1 ORDER BY title;")?;
+        let result: Result<Vec<VideoEntry>, rusqlite::Error> = statement
+            .query_map([collection_id], VideoEntry::from_rusqlite_row)?
+            .collect();
+        Ok(result?)
+    })
+    .await?;
+    Ok(videos)
+}
+
+pub(crate) async fn get_all_videos(
+    db_connection: web::Data<Pool>,
+) -> Result<Vec<VideoEntry>, Box<MultiThreadableError>> {
+    execute_get_vec(&db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Videos;")?;
+        let result: Result<Vec<VideoEntry>, rusqlite::Error> =
+            stmt.query_map([], VideoEntry::from_rusqlite_row)?.collect();
+        Ok(result?)
+    })
+    .await
+}
+
 /// Gets a video entry, if there is only one video in the collection
 pub(crate) async fn get_video_if_single_in_collection(
     db_connection: &web::Data<Pool>,
@@ -34,7 +65,7 @@ pub(crate) async fn get_video_if_single_in_collection(
         if let Some(row) = query.next()? {
             //found 2. row - not single
             if single.is_some() {
-                return Ok(Option::None);
+                return Ok(None);
             }
             single = Some(VideoEntry::from_rusqlite_row(row)?);
             continue;
@@ -43,6 +74,20 @@ pub(crate) async fn get_video_if_single_in_collection(
     }
     Ok(single)
 }
+
+pub(crate) async fn get_all_collections(
+    db_connection: web::Data<Pool>,
+) -> Result<Vec<VideoCollection>, Box<MultiThreadableError>> {
+    execute_get_vec(&db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Collections;")?;
+        let result: Result<Vec<VideoCollection>, rusqlite::Error> = stmt
+            .query_map([], VideoCollection::from_rusqlite_row)?
+            .collect();
+        Ok(result?)
+    })
+    .await
+}
+
 pub(crate) async fn get_root_collections(
     db_connection: &web::Data<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>,
 ) -> Result<Vec<VideoCollection>, Box<MultiThreadableError>> {
@@ -57,6 +102,7 @@ pub(crate) async fn get_root_collections(
     .await?;
     Ok(collections)
 }
+
 pub(crate) async fn get_child_collections(
     db_connection: &web::Data<Pool>,
     collection_id: CollectionId,
@@ -71,7 +117,8 @@ pub(crate) async fn get_child_collections(
     })
     .await
 }
-pub(crate) async fn _get_collection_by_id(
+
+pub(crate) async fn get_collection_by_id(
     db_connection: &web::Data<Pool>,
     collection_id: CollectionId,
 ) -> Result<VideoCollection, Box<MultiThreadableError>> {
@@ -82,6 +129,19 @@ pub(crate) async fn _get_collection_by_id(
     })
     .await
 }
+
+pub(crate) async fn get_collection_by_title(
+    db_connection: &web::Data<Pool>,
+    title: String,
+) -> Result<VideoCollection, Box<MultiThreadableError>> {
+    execute_single(db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Collections WHERE title= ?1;")?;
+        let result = stmt.query_row([title], VideoCollection::from_rusqlite_row)?;
+        Ok(result)
+    })
+    .await
+}
+
 pub(crate) async fn get_timestamp_store_by_id(
     db_connection: &web::Data<Pool>,
     video_id: VideoId,
@@ -122,5 +182,117 @@ pub(crate) async fn update_timestamp(
         })
         .await??;
     }
+    Ok(())
+}
+pub(crate) async fn insert_collection(
+    db_connection: &web::Data<Pool>,
+    collection: VideoCollection,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || match collection.get_parent_id() {
+        Some(id) => connection.execute(
+            "INSERT INTO Collections(title, parent_id) VALUES(?1, ?2);",
+            [collection.get_title(), &id.0.to_string()],
+        ),
+        None => connection.execute(
+            "INSERT INTO Collections(title) VALUES(?1);",
+            [collection.get_title()],
+        ),
+    })
+    .await??;
+    Ok(())
+}
+
+pub(crate) async fn update_collection(
+    db_connection: &web::Data<Pool>,
+    collection: VideoCollection,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || match collection.get_parent_id() {
+        Some(id) => connection.execute(
+            "UPDATE Collections SET title = ?1, parent_id = ?2 WHERE collection_id = ?3;",
+            [
+                collection.get_title(),
+                &id.0.to_string(),
+                &collection.get_id().0.to_string(),
+            ],
+        ),
+        None => connection.execute(
+            "UPDATE Collections SET title = ?1, parent_id = NULL WHERE collection_id = ?2;",
+            [collection.get_title(), &collection.get_id().0.to_string()],
+        ),
+    })
+    .await??;
+    Ok(())
+}
+
+#[async_recursion]
+pub(crate) async fn delete_collection(
+    db_connection: &web::Data<Pool>,
+    collection_id: CollectionId,
+) -> Result<(), Box<MultiThreadableError>> {
+    // recursive delete child collections
+    let colls = execute_get_vec(db_connection, move |conn| {
+        let mut stmt = conn.prepare("SELECT * FROM Collections WHERE parent_id = ?1;")?;
+        let result: Result<Vec<VideoCollection>, rusqlite::Error> = stmt
+            .query_map([collection_id], VideoCollection::from_rusqlite_row)?
+            .collect();
+        Ok(result?)
+    })
+    .await?;
+    for coll in colls {
+        delete_collection(db_connection, coll.get_id()).await?;
+    }
+
+    //delete videos in collection
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "DELETE FROM Videos WHERE collection_id = ?1;",
+            [collection_id.0.to_string()],
+        )
+    })
+    .await??;
+
+    //delete collection
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "DELETE FROM Collections WHERE collection_id = ?1;",
+            [&collection_id.0.to_string()],
+        )
+    })
+    .await??;
+    Ok(())
+}
+
+pub(crate) async fn insert_video_entry(
+    db_connection: &web::Data<Pool>,
+    video_entry: VideoEntry,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "INSERT INTO Videos(title, file_name, file_type, collection_id) VALUES(?1, ?2, ?3, ?4);",
+            [video_entry.get_title(), video_entry.get_file_name(),video_entry.get_file_type(), &video_entry.get_collection_id().0.to_string()],
+        )
+    })
+    .await??;
+    Ok(())
+}
+
+pub(crate) async fn update_video_entry(
+    db_connection: &web::Data<Pool>,
+    video_entry: VideoEntry,
+) -> Result<(), Box<MultiThreadableError>> {
+    let connection = get_connection(db_connection).await?;
+    let _ = web::block(move || {
+        connection.execute(
+            "UPDATE Videos SET title=?1, file_name=?2, file_type=?3, collection_id=?4 WHERE video_id = ?5;",
+            [video_entry.get_title(), video_entry.get_file_name(), video_entry.get_file_type(),
+                &video_entry.get_collection_id().0.to_string(), &video_entry.get_id().0.to_string()],
+        )
+    })
+    .await??;
     Ok(())
 }
